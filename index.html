@@ -1,8 +1,8 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Globe Géo-Marchés</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
 <style>
-/* Layout: globe MapLibre plein cadre, légende repliable en haut à gauche, commandes groupées en haut à droite, échelle en bas à gauche, fiche de détail en bas à droite (bas d'écran sur téléphone). Palette: noir, orange, blanc. */
+/* Layout: bandeau de cotations plein largeur en haut, globe MapLibre dessous, légende repliable en haut à gauche, commandes groupées en haut à droite, échelle en bas à gauche, fiche de détail en bas à droite (bas d'écran sur téléphone). Palette: noir, orange, blanc. */
 :root {
   --bg: #000000;
   --panel: rgba(14, 14, 14, 0.94);
@@ -13,16 +13,40 @@
   --or1: #5e3508;
   --or2: #b5600f;
   --or3: #fb8b1e;
+  --r-lg: 18px;
+  --r-md: 14px;
+  --r-sm: 10px;
+  --tape: 36px;
+  --ease: cubic-bezier(.22, .8, .24, 1);
   --font-ui: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 400 14px/1.45 var(--font-ui); overflow: hidden; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 14px/1.45 var(--font-ui); font-variant-numeric: tabular-nums; overflow: hidden; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--or3); outline-offset: 2px; }
-#stage { position: absolute; inset: 0; background: #050505; overflow: hidden; }
+
+/* bandeau de cotations */
+#tape { position: absolute; left: 0; right: 0; top: 0; height: var(--tape); z-index: 30; display: flex; align-items: center; background: #060606; border-bottom: 1px solid #1d1d1d; }
+.tape-id { flex: none; height: 100%; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 max(16px, env(safe-area-inset-left, 0px)); border-right: 1px solid #1d1d1d; }
+.tape-id b { font: 600 12px var(--font-data); letter-spacing: .18em; text-transform: uppercase; }
+.badge { font: 500 10px var(--font-data); letter-spacing: .06em; color: var(--or3); border: 1px solid #6a3d0b; background: #140d05; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.tape-view { flex: 1; min-width: 0; height: 100%; overflow: hidden; display: flex; align-items: center; -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.tape-track { display: flex; width: max-content; animation: tape 85s linear infinite; will-change: transform; }
+.tape-view:hover .tape-track { animation-play-state: paused; }
+@keyframes tape { to { transform: translateX(-50%); } }
+.tk { display: inline-flex; align-items: baseline; gap: 7px; padding: 0 20px; white-space: nowrap; font: 500 12px var(--font-data); font-variant-numeric: tabular-nums; }
+.tk b { color: #9c9c9c; font-weight: 500; letter-spacing: .04em; }
+.tk .v { color: #fff; }
+.tk .up { color: var(--or3); }
+.tk .dn { color: #fff; }
+.tk .fl { color: var(--faint); }
+.tk small { color: #5f5f5f; font-size: 10px; }
+
+#stage { position: absolute; inset: var(--tape) 0 0 0; background: #050505; overflow: hidden; opacity: 0; transition: opacity .9s var(--ease); }
+#stage.on { opacity: 1; }
 #map { position: absolute; inset: 0; touch-action: none; }
 .maplibregl-map { position: relative; overflow: hidden; -webkit-tap-highlight-color: transparent; }
 .maplibregl-canvas { position: absolute; left: 0; top: 0; }
@@ -30,79 +54,90 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--or3); out
 #lab, #fx { position: absolute; left: 0; top: 0; pointer-events: none; }
 #halo { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; border-radius: 50%; background: radial-gradient(closest-side, transparent 0, transparent 90%, rgba(255, 255, 255, .13) 91.6%, rgba(255, 255, 255, 0) 100%); }
 .hud { position: absolute; z-index: 5; }
-.tl { top: 14px; left: max(16px, env(safe-area-inset-left, 0px)); display: flex; align-items: center; gap: 10px; pointer-events: none; }
-.tl h1 { margin: 0; font: 500 13px var(--font-data); letter-spacing: .18em; text-transform: uppercase; }
-.badge { font: 400 11px var(--font-data); color: var(--or3); border: 1px solid #5e3508; padding: 1px 6px; }
 .ctrls { top: 12px; right: max(14px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 8px; }
-.grp { display: flex; flex-direction: column; background: var(--panel); border: 1px solid #262626; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, .55); }
-.ib { width: 38px; height: 38px; display: grid; place-items: center; background: none; border: 0; padding: 0; color: #cfcfcf; }
-.ib:hover { color: #fff; background: #1c1c1c; }
+.grp { display: flex; flex-direction: column; background: var(--panel); border: 1px solid #262626; border-radius: var(--r-md); overflow: hidden; box-shadow: 0 6px 20px rgba(0, 0, 0, .55); }
+.ib { width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; padding: 0; color: #cfcfcf; transition: color .2s ease, background .2s ease, transform .2s var(--ease); }
+.ib:hover { color: #fff; background: #1d1d1d; }
+.ib:active { transform: scale(.92); }
 .ib svg { display: block; }
 .grp .ib + .ib { border-top: 1px solid var(--line); }
 .ib[aria-pressed="true"] { color: var(--or3); }
-.lone { background: var(--panel); border: 1px solid #262626; border-radius: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, .55); }
-#legend, #legendOpen { top: 46px; left: max(16px, env(safe-area-inset-left, 0px)); }
-.fade { transition: opacity .26s ease, transform .26s cubic-bezier(.2, .7, .2, 1), visibility 0s linear 0s; }
-.fade.off { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s; }
-#legend { width: 236px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 8px; transform-origin: top left; }
-#legend.off { transform: translateY(-6px) scale(.97); }
+.lone { background: var(--panel); border: 1px solid #262626; border-radius: var(--r-md); box-shadow: 0 6px 20px rgba(0, 0, 0, .55); }
+#legend, #legendOpen { top: 12px; left: max(16px, env(safe-area-inset-left, 0px)); }
+.fade { transition: opacity .32s var(--ease), transform .32s var(--ease), visibility 0s linear 0s; }
+.fade.off { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s; }
+#legend { width: 244px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 12px 10px; transform-origin: top left; box-shadow: 0 8px 28px rgba(0, 0, 0, .55); max-height: calc(100% - 92px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+#legend.off { transform: translateY(-8px) scale(.96); }
 #legendOpen { transform-origin: top left; }
-#legendOpen.off { transform: scale(.85); }
+#legendOpen.off { transform: scale(.8); }
 #detail { transform-origin: bottom right; }
-#detail.off { transform: translateY(8px); }
+#detail.off { transform: translateY(12px) scale(.98); }
 .lg-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .lg-head span, .lg-sep { font: 500 11px var(--font-data); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
 .lg-sep { margin: 10px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); }
-.lg-head .ib { width: 26px; height: 26px; border-radius: 4px; }
-.lg-row { width: 100%; display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 10px; text-align: left; background: none; border: 0; padding: 6px 2px; transition: opacity .2s ease, background .15s ease; }
+.lg-head .ib { width: 28px; height: 28px; border-radius: 50%; }
+.lg-row { width: 100%; display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 10px; text-align: left; background: none; border: 0; padding: 7px 6px; border-radius: var(--r-sm); transition: opacity .3s ease, background .2s ease; }
 .lg-row[aria-pressed="false"] { opacity: .38; }
 .lg-row:hover { background: #181818; }
 .lg-row b { font-weight: 500; }
-.lg-scale { display: flex; gap: 9px; padding: 0 0 6px 28px; font-size: 12px; color: var(--dim); white-space: nowrap; }
+.lg-row small { display: block; font-size: 11px; color: var(--faint); line-height: 1.25; }
+.lg-scale { display: flex; gap: 9px; padding: 0 0 6px 34px; font-size: 12px; color: var(--dim); white-space: nowrap; }
 .lg-scale span { display: inline-flex; align-items: center; gap: 4px; }
-.lg-scale i { width: 10px; height: 10px; display: inline-block; }
+.lg-scale i { width: 10px; height: 10px; display: inline-block; border-radius: 3px; }
 .lg-src { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 6px; font-size: 11px; color: var(--faint); }
 .lg-src summary { cursor: pointer; }
 .lg-src p { margin: 6px 0 0; line-height: 1.5; }
 .lg-src a { color: var(--dim); }
 .sh { display: inline-block; flex: none; }
-.sh.c { width: 11px; height: 11px; border-radius: 50%; background: var(--fg); }
-.sh.d { width: 9px; height: 9px; background: var(--or3); transform: rotate(45deg); margin: 1px; }
-.sh.s { width: 10px; height: 10px; border: 2px solid var(--fg); }
-.sh.k { width: 12px; height: 12px; background: var(--or3); }
-.sh.e, .sh.f { width: 14px; height: 8px; border-top: 2px solid var(--or3); border-radius: 14px 14px 0 0; position: relative; margin-top: 3px; }
-.sh.e { border-top-style: dashed; border-top-color: var(--or2); }
+.sh.c { width: 11px; height: 11px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 3px rgba(255, 255, 255, .14); }
+.sh.d { width: 9px; height: 9px; background: var(--or3); transform: rotate(45deg); margin: 1px; border-radius: 2px; }
+.sh.s { width: 10px; height: 10px; border: 2px solid var(--fg); border-radius: 3px; }
+.sh.k { width: 12px; height: 12px; background: var(--or3); border-radius: 4px; }
+.sh.n { width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(90deg, var(--fg) 50%, #343434 50%); }
+.sh.e, .sh.f { width: 14px; height: 8px; border-top: 2px solid var(--c, var(--or3)); border-radius: 14px 14px 0 0; position: relative; margin-top: 3px; }
+.sh.e { border-top-style: dashed; border-top-color: var(--c, var(--or2)); }
+.sh.sp { width: 0; height: 0; border-left: 11px solid var(--or3); border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-radius: 1px; }
+.sh.b { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 11px solid var(--fg); }
+.sh.o { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); border-top-color: var(--fg); border-right-color: var(--fg); position: relative; }
 .sh.f::after { content: ""; position: absolute; right: -2px; top: -4px; width: 5px; height: 5px; border-radius: 50%; background: #fff; }
 .lg-row .sh { justify-self: center; }
-#detail { right: max(14px, env(safe-area-inset-right, 0px)); bottom: 16px; width: 330px; max-height: 60%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+#detail { right: max(14px, env(safe-area-inset-right, 0px)); bottom: 16px; width: 336px; max-height: 60%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; box-shadow: 0 8px 28px rgba(0, 0, 0, .55); }
 #detail .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 #detail .kind { font: 500 11px var(--font-data); letter-spacing: .1em; text-transform: uppercase; color: var(--or3); display: flex; align-items: center; gap: 7px; }
-#detail .x { width: 26px; height: 26px; color: var(--dim); border-radius: 4px; }
+#detail .x { width: 28px; height: 28px; color: var(--dim); border-radius: 50%; }
 #detail h3 { margin: 6px 0 2px; font-size: 19px; font-weight: 600; text-wrap: balance; }
 #detail .tag { font: 500 13px var(--font-data); margin-bottom: 8px; }
+#detail .st { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 8px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font: 500 11px var(--font-data); color: var(--dim); }
+#detail .st i { width: 7px; height: 7px; border-radius: 50%; background: #444; }
+#detail .st.on { color: #fff; border-color: #555; }
+#detail .st.on i { background: #fff; box-shadow: 0 0 8px 2px rgba(255, 255, 255, .5); }
 #detail p { margin: 0 0 8px; color: var(--dim); }
 #detail .asof { font: 400 11px var(--font-data); color: var(--faint); }
-#scale { left: max(16px, env(safe-area-inset-left, 0px)); bottom: 16px; display: flex; align-items: center; gap: 12px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 999px; padding: 8px 15px; font: 500 12px var(--font-ui); color: #bdbdbd; box-shadow: 0 4px 16px rgba(0, 0, 0, .5); }
-#scale .bar { display: block; height: 7px; border: 1px solid #cfcfcf; border-top: 0; width: 90px; }
+#scale { left: max(16px, env(safe-area-inset-left, 0px)); bottom: 16px; display: flex; align-items: center; gap: 12px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 999px; padding: 8px 16px; font: 500 12px var(--font-ui); color: #bdbdbd; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); }
+#scale .bar { display: block; height: 7px; border: 1px solid #cfcfcf; border-top: 0; width: 90px; border-radius: 0 0 3px 3px; }
 #scale b { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
-#tip { position: fixed; z-index: 20; pointer-events: none; background: #0a0a0a; border: 1px solid #444; padding: 5px 9px; font-size: 12px; max-width: 260px; display: none; }
+#tip { position: fixed; z-index: 40; pointer-events: none; background: #0a0a0a; border: 1px solid #3a3a3a; padding: 6px 11px; font-size: 12px; max-width: 280px; border-radius: var(--r-sm); display: none; box-shadow: 0 6px 18px rgba(0, 0, 0, .6); }
 #tip b { font-weight: 600; }
 #tip span { display: block; font-family: var(--font-data); color: var(--or3); margin-top: 1px; }
 #fail { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--dim); }
-@media (prefers-reduced-motion: reduce) { .fade, .fade.off { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .fade, .fade.off, #stage { transition: none; } .tape-track { animation: none; } }
 @media (max-width: 640px) {
-  #legend { width: min(236px, calc(100vw - 80px)); }
+  .badge { display: none; }
+  #legend { width: min(244px, calc(100vw - 80px)); }
   #detail { left: 12px; right: 12px; bottom: 12px; width: auto; max-height: 44%; }
   #detail:not(.off) ~ #scale { bottom: calc(44% + 20px); }
 }
 </style>
 
+<header id="tape" aria-label="Cotations">
+  <div class="tape-id"><b>Géo-Marchés</b><span class="badge">Instantané 11.11.26</span></div>
+  <div class="tape-view"><div class="tape-track" id="tapeTrack"></div></div>
+</header>
 <div id="stage">
   <div id="halo"></div>
   <div id="map" aria-label="Globe interactif des conflits et événements financiers"></div>
   <canvas id="lab"></canvas>
   <canvas id="fx"></canvas>
-  <div class="hud tl"><h1>Géo-Marchés</h1><span class="badge">Instantané 11.11.26</span></div>
   <div class="hud ctrls">
     <div class="grp">
       <button class="ib" id="zin" type="button" title="Zoom avant" aria-label="Zoom avant"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg></button>
@@ -116,14 +151,24 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--or3); out
   <button class="ib hud lone fade off" id="legendOpen" type="button" title="Afficher la légende" aria-label="Afficher la légende"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h8"/></svg></button>
   <section class="hud fade" id="legend" aria-label="Légende et filtres">
     <div class="lg-head"><span>Légende</span><button class="ib" id="legendClose" type="button" title="Masquer la légende" aria-label="Masquer la légende"><svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M2 2l10 10M12 2L2 12"/></svg></button></div>
-    <button class="lg-row" type="button" data-k="conflits" aria-pressed="true"><span class="sh k"></span><span><b>Pays en conflit</b></span></button>
+    <button class="lg-row" type="button" data-k="conflits" aria-pressed="true"><span class="sh k"></span><span><b>Pays et zones en conflit</b></span></button>
     <div class="lg-scale"><span><i style="background:var(--or1)"></i>Tension</span><span><i style="background:var(--or2)"></i>Conflit</span><span><i style="background:var(--or3)"></i>Guerre</span></div>
-    <button class="lg-row" type="button" data-k="marches" aria-pressed="true"><span class="sh c"></span><span><b>Bourses</b></span></button>
+    <button class="lg-row" type="button" data-k="marches" aria-pressed="true"><span class="sh c"></span><span><b>Bourses</b><small>allumée = séance ouverte</small></span></button>
     <button class="lg-row" type="button" data-k="matieres" aria-pressed="true"><span class="sh d"></span><span><b>Matières premières</b></span></button>
     <button class="lg-row" type="button" data-k="banques" aria-pressed="true"><span class="sh s"></span><span><b>Banques centrales</b></span></button>
+    <button class="lg-row" type="button" data-k="choke" aria-pressed="true"><span class="sh o"></span><span><b>Chokepoints</b><small>jauge = part habituelle du trafic mondial</small></span></button>
+    <button class="lg-row" type="button" data-k="flotte" aria-pressed="true"><span class="sh b"></span><span><b>Flotte militaire</b><small>porte-avions US, fin sept. 2026</small></span></button>
     <div class="lg-sep">Flux 3D</div>
     <button class="lg-row" type="button" data-f="frappe" aria-pressed="true"><span class="sh f"></span><span><b>Frappes (indicatif)</b></span></button>
-    <button class="lg-row" type="button" data-f="energie" aria-pressed="true"><span class="sh e"></span><span><b>Routes énergétiques</b></span></button>
+    <button class="lg-row" type="button" data-f="armes" aria-pressed="true"><span class="sh f" style="--c:#ffd6a6"></span><span><b>Aide militaire</b></span></button>
+    <button class="lg-row" type="button" data-f="finance" aria-pressed="true"><span class="sh f" style="--c:#ebebeb"></span><span><b>Dette américaine détenue</b></span></button>
+    <button class="lg-row" type="button" data-f="energie" aria-pressed="true"><span class="sh e"></span><span><b>Pétrole, gaz et GNL</b></span></button>
+    <button class="lg-row" type="button" data-f="cereales" aria-pressed="true"><span class="sh e" style="--c:#ffd6a6"></span><span><b>Céréales</b></span></button>
+    <button class="lg-row" type="button" data-f="metaux" aria-pressed="true"><span class="sh e" style="--c:#e1e1e1"></span><span><b>Métaux et terres rares</b></span></button>
+    <button class="lg-row" type="button" data-f="conteneurs" aria-pressed="true"><span class="sh e" style="--c:#b5600f"></span><span><b>Conteneurs Asie–Europe</b></span></button>
+    <div class="lg-sep">Affichage</div>
+    <button class="lg-row" type="button" data-o="ships" aria-pressed="true"><span class="sh sp"></span><span><b>Navires</b><small>illustratifs, pas de suivi réel</small></span></button>
+    <button class="lg-row" type="button" data-o="night" aria-pressed="true"><span class="sh n"></span><span><b>Ombre jour / nuit</b></span></button>
     <details class="lg-src"><summary>Sources et limites</summary><p id="src"></p></details>
   </section>
   <section class="hud fade off" id="detail" aria-live="polite"></section>
@@ -225,63 +270,225 @@ const LABELS = [{"id":"010","n":"Antarctique","lng":31.51,"lat":-77.15,"a":4012.
 /* ============ FIN DES DONNÉES ============ */
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const RAD = Math.PI / 180;
+const RAD = Math.PI / 180, TAU = Math.PI * 2;
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const stage = $('stage');
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const mixc = (a, b, t) => 'rgb(' + Math.round(lerp(a[0], b[0], t)) + ',' + Math.round(lerp(a[1], b[1], t)) + ',' + Math.round(lerp(a[2], b[2], t)) + ')';
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+LAYERS.choke = { label: 'Chokepoints', shape: 'o' };
+LAYERS.flotte = { label: 'Flotte militaire', shape: 'b' };
 const active = new Set(Object.keys(LAYERS));
-const flowOn = { frappe: true, energie: true };
-let selectedId = null, rot = !reduce, flying = false;
+const flowOn = {};
+let shipsOn = true, nightOn = true, selectedId = null, rot = !reduce, flying = false;
+
+/* ---------- bandeau de cotations ---------- */
+/* dir : 1 hausse (orange), -1 baisse (blanc), 0 sans variation connue */
+const TAPE = [
+  ['S&P 500', '7 703,57', '1,78 %', 1, ''], ['NASDAQ', '25 849,18', '1,88 %', 1, ''], ['BRENT', '94,65 $', '8,64 %', -1, ''], ['WTI', '88,00 $', '8,42 %', -1, ''],
+  ['OR', '4 060,26 $', '3,60 %', 1, ''], ['EUR/USD', '1,1135', '', 0, '28 oct.'], ['DAX', '25 780,71', '0,15 %', -1, '3 nov.'], ['CAC 40', '7 976,78', '0,09 %', 1, '3 nov.'],
+  ['FTSE 100', '10 707,92', '0,20 %', -1, '3 nov.'], ['NIKKEI 225', '63 081,86', '0,33 %', -1, '2 nov.'], ['KOSPI', '5 859,08', '2,24 %', 1, '3 nov.'], ['HANG SENG', '23 393,32', '0,42 %', 1, '3 nov.'],
+  ['FED', '3,75 – 4,00 %', '', 0, '28 oct.'], ['BCE', '2,50 %', '', 0, '29 oct.'], ['BOJ', '1,25 %', '', 0, '30 oct.']
+];
+(function buildTape() {
+  const one = TAPE.map(([n, v, c, d, note]) => '<span class="tk"><b>' + esc(n) + '</b><span class="v">' + esc(v) + '</span>' + (d ? '<span class="' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '▲' : '▼') + ' ' + esc(c) + '</span>' : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span>').join('');
+  $('tapeTrack').innerHTML = one + one;
+})();
+
+/* ---------- séances de bourse ---------- */
+/* sessions en minutes locales ; jours fériés non pris en compte */
+const EXCH = {
+  ny: { tz: 'America/New_York', s: [[570, 960]] }, londres: { tz: 'Europe/London', s: [[480, 990]] }, francfort: { tz: 'Europe/Berlin', s: [[540, 1050]] },
+  paris: { tz: 'Europe/Paris', s: [[540, 1050]] }, tokyo: { tz: 'Asia/Tokyo', s: [[540, 690], [750, 930]] }, shanghai: { tz: 'Asia/Shanghai', s: [[570, 690], [780, 900]] },
+  hongkong: { tz: 'Asia/Hong_Kong', s: [[570, 720], [780, 960]] }, seoul: { tz: 'Asia/Seoul', s: [[540, 930]] }, sydney: { tz: 'Australia/Sydney', s: [[600, 960]] }
+};
+Object.values(EXCH).forEach((e) => { try { e.fmt = new Intl.DateTimeFormat('en-GB', { timeZone: e.tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); } catch (err) { e.fmt = null; } });
+function updateExchanges(first) {
+  const now = new Date();
+  for (const d of DATA) {
+    const e = EXCH[d.id]; if (!e || !e.fmt) continue;
+    const parts = e.fmt.formatToParts(now), g = (t) => parts.find((p) => p.type === t).value;
+    const m = (+g('hour')) * 60 + (+g('minute')), wd = g('weekday');
+    d.local = g('hour') + ':' + g('minute');
+    d.open = wd !== 'Sat' && wd !== 'Sun' && e.s.some((s) => m >= s[0] && m < s[1]);
+    if (first) d._lit = d.open ? 1 : 0;
+  }
+}
+const statusText = (d) => (d.open ? 'Séance ouverte' : 'Séance fermée') + ' · ' + d.local + ' heure locale';
+
+/* ---------- zones de tension (mers) ---------- */
+DATA.push({ id: 'mer-rouge', layer: 'conflits', level: 1, name: 'Mer Rouge et Bab el-Mandeb', lat: 17.0, lng: 40.0, tag: 'Zone à surveiller, non vérifié',
+  text: 'Passage d’une partie du pétrole du Golfe vers l’Europe par Suez. Mes recherches n’ont pas donné de source datée de novembre 2026 sur la situation actuelle : la zone est marquée par prudence, sans détail.', asof: '—' });
+
+/* chokepoints : g = part habituelle du trafic mondial (ordre de grandeur structurel, pas du temps réel) */
+[
+  ['choke-ormuz', 'Détroit d’Ormuz', 26.6, 56.3, 0.20, 'Environ 20 % du pétrole mondial', 'En temps normal, environ un cinquième du pétrole consommé dans le monde passe par ce détroit, ainsi qu’une grande part du GNL du Qatar. L’Iran y restreint le passage depuis le début de la guerre. La jauge est la part habituelle, pas le trafic actuel.'],
+  ['choke-malacca', 'Détroit de Malacca', 2.5, 101.3, 0.25, 'Près d’un quart du commerce maritime', 'Passage obligé entre l’océan Indien et la mer de Chine méridionale. Ordre de grandeur habituel d’environ un quart du commerce maritime mondial, pas de mesure en temps réel.'],
+  ['choke-suez', 'Canal de Suez', 30.5, 32.4, 0.12, 'Environ 12 % du commerce mondial', 'Relie la mer Rouge à la Méditerranée. Ordre de grandeur habituel d’environ 12 % du commerce mondial. Je n’ai pas de source datée sur le trafic actuel.'],
+  ['choke-panama', 'Canal de Panama', 9.1, -79.7, 0.05, 'Environ 5 % du commerce maritime', 'Relie l’Atlantique au Pacifique. Ordre de grandeur habituel d’environ 5 % du commerce maritime mondial, sensible à la sécheresse. Pas de mesure actuelle ici.'],
+  ['choke-bosphore', 'Détroit du Bosphore', 41.1, 29.05, 0.03, 'Environ 3 % du pétrole mondial', 'Seul passage entre la mer Noire et la Méditerranée, par lequel transitent les céréales et le pétrole de la mer Noire. Ordre de grandeur habituel d’environ 3 % du pétrole mondial. Pas de mesure actuelle ici.']
+].forEach(([id, name, lat, lng, g, tag, text]) => DATA.push({ id, layer: 'choke', name, lat, lng, g, tag, text, asof: 'ordre de grandeur structurel' }));
+/* flotte : positions publiées par TWZ au 30 sept. 2026 ; les coordonnées sont des zones approximatives, pas des positions exactes */
+[
+  ['nav-gw', 'USS George Washington (CVN-73)', 25.6, 58.6, 'Porte-avions, zone de la 5e flotte', 'Selon TWZ au 30 septembre 2026, le George Washington, basé au Japon, était en position dans la zone de la 5e flotte américaine et appuyait les opérations contre l’Iran, avec relève prévue par le Theodore Roosevelt. Position exacte non publiée : le point indique une zone approximative.'],
+  ['nav-bush', 'USS George H.W. Bush (CVN-77)', 18.0, 64.0, 'Porte-avions, mer d’Arabie', 'Selon TWZ, le George H.W. Bush a été signalé en mer d’Arabie le 25 septembre 2026, en appui des opérations contre l’Iran. Une escale à Phuket signalée par des médias thaïlandais n’est pas confirmée. Point approximatif.'],
+  ['nav-tr', 'USS Theodore Roosevelt (CVN-71)', 1.3, 104.0, 'Porte-avions, escale à Singapour', 'Parti de San Diego le 27 septembre 2026 pour relever le George Washington, signalé ensuite en escale à Singapour par USNI News, dernière étape avant le Moyen-Orient. Date de l’escale non vérifiée ici.'],
+  ['nav-lincoln', 'USS Abraham Lincoln (CVN-72)', 21.0, -158.0, 'Porte-avions, retour vers San Diego', 'Selon TWZ au 30 septembre 2026, il faisait route vers l’est dans la zone d’Hawaï, après environ dix mois de déploiement.'],
+  ['nav-ike', 'USS Dwight D. Eisenhower (CVN-69)', 36.9, -75.0, 'Porte-avions, entraînement au large de la Virginie', 'Selon TWZ au 30 septembre 2026, il se préparait à un déploiement en 2027, au large de la Virginie.']
+].forEach(([id, name, lat, lng, tag, text]) => DATA.push({ id, layer: 'flotte', name, lat, lng, tag, text, asof: '30 sept. 2026 (positions approximatives)' }));
+const ZONES = {
+  ormuz: [[53.8, 26.3], [55.2, 27.1], [57.0, 26.9], [58.6, 25.5], [58.9, 23.9], [57.4, 23.0], [55.9, 24.2], [54.6, 25.2]],
+  'mer-rouge': [[32.6, 29.9], [35.0, 28.0], [37.0, 24.0], [39.8, 19.0], [42.0, 15.3], [43.6, 12.7], [45.0, 12.0], [43.3, 11.6], [41.8, 13.5], [40.0, 15.8], [37.2, 20.0], [35.3, 24.5], [33.6, 27.7]],
+  scs: [[108.5, 5.5], [112.0, 3.5], [116.0, 5.8], [118.5, 9.5], [120.2, 14.0], [120.0, 18.0], [116.5, 19.5], [112.0, 17.0], [109.5, 12.5]]
+};
+DATA.forEach((d) => { if (ZONES[d.id]) { d.zone = ZONES[d.id]; d.name = d.id === 'ormuz' ? 'Détroit d’Ormuz' : d.name; } });
+const zoneFeats = DATA.filter((d) => d.zone).map((d) => ({ type: 'Feature', properties: { id: d.id, lv: d.level }, geometry: { type: 'Polygon', coordinates: [d.zone.concat([d.zone[0]])] } }));
 
 /* ---------- flux 3D ---------- */
-const FLUX_KIND = { frappe: { label: 'Frappes (indicatif)', shape: 'f' }, energie: { label: 'Routes énergétiques', shape: 'e' } };
+const FLUX_KIND = {
+  frappe: { label: 'Frappes (indicatif)', shape: 'f', style: 'arc', col: [251, 139, 30] },
+  armes: { label: 'Aide militaire', shape: 'f', style: 'arc', col: [255, 214, 166] },
+  finance: { label: 'Dette américaine détenue', shape: 'f', style: 'arc', col: [235, 235, 235] },
+  energie: { label: 'Pétrole, gaz et GNL', shape: 'e', style: 'route', col: [214, 120, 30] },
+  cereales: { label: 'Céréales', shape: 'e', style: 'route', col: [255, 214, 166] },
+  metaux: { label: 'Métaux et terres rares', shape: 'e', style: 'route', col: [225, 225, 225] },
+  conteneurs: { label: 'Conteneurs Asie–Europe', shape: 'e', style: 'route', col: [181, 96, 15] },
+  flotte: { label: 'Déploiement naval (indicatif)', shape: 'e', style: 'route', col: [240, 240, 240] }
+};
+Object.keys(FLUX_KIND).forEach((k) => { flowOn[k] = true; });
 /* from/to = [lat, lng]. Les trajectoires sont schématiques, de pays à pays. */
 const FLOWS = [
   { id: 'fl-ru-ua', kind: 'frappe', name: 'Drones russes sur l’Ukraine', tag: '227 drones, nuit du 5 au 6 nov.', asof: '6 nov. 2026', zoom: 2.6,
     text: 'Selon l’ISW, la Russie a lancé 227 drones contre l’Ukraine dans la nuit du 5 au 6 novembre. Le tracé relie la Russie à l’Ukraine de façon indicative, ce n’est pas une trajectoire réelle.',
-    from: [52.0, 38.5], to: [49.3, 31.5], h: 0.07 },
+    from: [52.0, 38.5], to: [49.3, 31.5] },
   { id: 'fl-ua-ru', kind: 'frappe', name: 'Frappe ukrainienne sur une raffinerie', tag: 'Sud de la Russie', asof: '6 nov. 2026', zoom: 2.6,
     text: 'Selon l’ISW, l’Ukraine a frappé l’une des plus grandes raffineries du sud de la Russie dans la nuit du 5 au 6 novembre. Origine et cible sont indicatives.',
-    from: [48.0, 36.0], to: [45.6, 40.5], h: 0.06 },
+    from: [48.0, 36.0], to: [45.6, 40.5] },
   { id: 'fl-ir-golfe', kind: 'frappe', name: 'Tirs iraniens sur le Golfe', tag: 'Drones et missiles', asof: '2 nov. 2026', zoom: 3.2,
     text: 'Depuis le début de la guerre le 28 février, l’Iran a tiré à plusieurs reprises des drones et des missiles sur des pays du Golfe (Reuters). Le tracé est indicatif, de l’Iran vers la rive arabe du Golfe.',
-    from: [29.0, 52.5], to: [24.4, 54.4], h: 0.05 },
+    from: [29.0, 52.5], to: [24.4, 54.4] },
   { id: 'fl-golfe-asie', kind: 'energie', name: 'Pétrole et GNL du Golfe vers l’Asie', tag: 'Via Ormuz et Malacca, restreint', asof: '4 nov. 2026', zoom: 0.9,
     text: 'Itinéraire habituel par le détroit d’Ormuz, l’océan Indien, le détroit de Malacca et la mer de Chine méridionale. En temps normal, environ un cinquième du pétrole et du GNL mondiaux passe par Ormuz, mais l’Iran y restreint le passage depuis le début de la guerre. Tracé schématique.',
-    wp: [[26.5, 56.5], [24.8, 58.5], [22.0, 62.5], [12.0, 70.0], [6.0, 78.5], [5.0, 90.0], [3.5, 98.5], [1.3, 103.8], [8.0, 108.0], [14.0, 112.0], [21.0, 117.5], [26.0, 122.0], [31.0, 123.0]], h: 0.008 },
+    wp: [[26.5, 56.5], [24.8, 58.5], [22.0, 62.5], [12.0, 70.0], [6.0, 78.5], [5.0, 90.0], [3.5, 98.5], [1.3, 103.8], [8.0, 108.0], [14.0, 112.0], [21.0, 117.5], [26.0, 122.0], [31.0, 123.0]] },
   { id: 'fl-golfe-europe', kind: 'energie', name: 'Pétrole du Golfe vers l’Europe', tag: 'Via Bab el-Mandeb et Suez', asof: '4 nov. 2026', zoom: 0.9,
     text: 'Itinéraire habituel par le détroit d’Ormuz, le golfe d’Aden, la mer Rouge, le canal de Suez et la Méditerranée jusqu’à Rotterdam. Tracé schématique, sans information sur l’état actuel du trafic en mer Rouge.',
-    wp: [[26.5, 56.5], [24.8, 58.5], [18.0, 58.0], [13.5, 51.0], [12.2, 45.5], [12.6, 43.4], [15.5, 41.8], [21.0, 38.5], [27.5, 34.0], [29.9, 32.55], [31.3, 32.3], [33.5, 28.0], [35.0, 20.0], [36.5, 12.0], [37.5, 5.0], [36.5, -2.0], [36.0, -5.6], [37.0, -9.8], [43.5, -9.8], [47.5, -6.0], [50.0, -1.5], [51.4, 2.5], [51.95, 4.0]], h: 0.008 }
+    wp: [[26.5, 56.5], [24.8, 58.5], [18.0, 58.0], [13.5, 51.0], [12.2, 45.5], [12.6, 43.4], [15.5, 41.8], [21.0, 38.5], [27.5, 34.0], [29.9, 32.55], [31.3, 32.3], [33.5, 28.0], [35.0, 20.0], [36.5, 12.0], [37.5, 5.0], [36.5, -2.0], [36.0, -5.6], [37.0, -9.8], [43.5, -9.8], [47.5, -6.0], [50.0, -1.5], [51.4, 2.5], [51.95, 4.0]] }
 ];
 const toVec = (lat, lng) => { const a = lat * RAD, b = lng * RAD; return [Math.cos(a) * Math.cos(b), Math.cos(a) * Math.sin(b), Math.sin(a)]; };
 const fromVec = (v) => [Math.asin(Math.max(-1, Math.min(1, v[2]))) / RAD, Math.atan2(v[1], v[0]) / RAD];
-function arcPts(A, B, hf, step) {
+function arcPts(A, B, step) {
   const a = toVec(A[0], A[1]), b = toVec(B[0], B[1]);
   const w = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
   const n = Math.max(2, Math.ceil(w / RAD / step)), s = Math.sin(w), out = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n, ka = s ? Math.sin((1 - t) * w) / s : 1 - t, kb = s ? Math.sin(t * w) / s : t;
     const ll = fromVec([ka * a[0] + kb * b[0], ka * a[1] + kb * b[1], ka * a[2] + kb * b[2]]);
-    out.push({ lat: ll[0], lng: ll[1], h: hf(t) });
+    out.push({ lat: ll[0], lng: ll[1] });
   }
   return out;
 }
+
+/* routes partagées (tronçons de waypoints, schématiques) */
+const OUT_H = [[26.5, 56.5], [24.8, 58.5]];
+const MAL_E = [[1.3, 103.8], [8.0, 108.0], [14.0, 112.0], [21.0, 117.5], [26.0, 122.0], [31.0, 123.0]];
+const SUEZ_N = [[29.9, 32.55], [31.3, 32.3], [33.5, 28.0], [35.0, 20.0], [36.5, 12.0], [37.5, 5.0], [36.5, -2.0], [36.0, -5.6], [37.0, -9.8], [43.5, -9.8], [47.5, -6.0], [50.0, -1.5], [51.4, 2.5], [51.95, 4.0]];
+const CAPE_W = [[-36.5, 22.0], [-34.5, 10.0], [-20.0, 5.0], [0.0, -5.0], [15.0, -20.0], [30.0, -15.0], [38.0, -11.0], [43.5, -10.0], [47.5, -6.0], [50.0, -1.5], [51.4, 2.5], [51.95, 4.0]];
+const PANAMA_E = [[21.8, -85.5], [15.0, -80.0], [9.4, -79.9], [8.9, -79.5], [7.0, -90.0], [15.0, -125.0], [25.0, -165.0], [30.0, 170.0], [28.0, 135.0], [28.0, 124.0], [31.0, 123.0]];
+FLOWS.push(
+  { id: 'fl-turkstream', kind: 'energie', name: 'Gazoduc TurkStream', tag: 'Russie vers Turquie et Europe du Sud-Est', asof: 'tracé indicatif', zoom: 2.0, lat: 43.2, lng: 31.0,
+    text: 'Gazoduc sous la mer Noire reliant la côte russe (Anapa) à la Turquie (Kıyıköy), puis vers la Bulgarie, la Serbie et la Hongrie. Je n’ai pas de source datée de 2026 sur ses volumes actuels : le statut « en service » est donc non vérifié.',
+    wp: [[44.9, 37.3], [43.5, 33.5], [42.0, 29.5], [41.6, 28.1], [42.5, 26.0], [44.0, 23.0], [46.0, 20.0]] },
+  { id: 'fl-nordstream', kind: 'energie', off: true, name: 'Gazoduc Nord Stream', tag: 'À l’arrêt', asof: 'arrêt depuis 2022', zoom: 2.0,
+    text: 'Gazoduc sous la Baltique entre la Russie (Vyborg) et l’Allemagne (Lubmin), endommagé par des explosions en septembre 2022 et à l’arrêt depuis. Tracé gris, sans particules, pour montrer une route coupée.',
+    wp: [[60.5, 28.2], [59.8, 24.0], [57.5, 19.5], [55.5, 15.5], [54.15, 13.6]] },
+  { id: 'fl-powersib', kind: 'energie', name: 'Gazoduc Force de Sibérie', tag: 'Sibérie orientale vers la Chine', asof: 'tracé indicatif', zoom: 1.6,
+    text: 'Gazoduc russe entre le gisement de Tchaïanda et le nord-est de la Chine, via Blagovechtchensk. Tracé indicatif, volumes actuels non vérifiés.',
+    wp: [[61.9, 129.5], [56.0, 128.0], [50.3, 127.5], [45.0, 126.0], [41.0, 123.0]] },
+  { id: 'fl-lng-us-eu', kind: 'energie', name: 'GNL américain vers l’Europe', tag: 'Golfe du Mexique vers Rotterdam', asof: 'tracé indicatif', zoom: 0.5,
+    text: 'Route habituelle des méthaniers entre le Texas (Sabine Pass) et l’Europe du Nord-Ouest. D’après le titre d’un billet de SynMax, le GNL américain est devenu le seul grand fournisseur fiable, mais proche de son maximum de capacité. Tracé schématique.',
+    wp: [[29.6, -93.8], [26.5, -89.0], [23.8, -82.0], [25.5, -79.5], [29.0, -76.0], [36.0, -65.0], [44.0, -40.0], [48.5, -15.0], [49.2, -5.5], [50.0, -1.5], [51.4, 2.5], [51.95, 4.0]] },
+  { id: 'fl-lng-us-asie', kind: 'energie', name: 'GNL américain vers l’Asie', tag: 'Via le canal de Panama', asof: 'tracé indicatif', zoom: 0.4,
+    text: 'Route par le canal de Panama puis le Pacifique jusqu’en Asie de l’Est. Tracé schématique, sans donnée sur les volumes actuels.',
+    wp: [[29.6, -93.8], [25.0, -90.0]].concat(PANAMA_E.slice(0, 7), [[25.0, -165.0], [30.0, 170.0], [34.8, 140.0]]) },
+  { id: 'fl-ble-noire', kind: 'cereales', name: 'Céréales de la mer Noire', tag: 'Odessa vers la Méditerranée et l’Égypte', asof: 'tracé indicatif', zoom: 1.5,
+    text: 'Route habituelle des cargos de blé et de maïs depuis les ports ukrainiens et russes de la mer Noire, par le Bosphore, vers la Méditerranée, l’Égypte et l’Afrique du Nord. Tracé schématique, sans donnée de volume.',
+    wp: [[46.2, 31.0], [43.5, 29.5], [41.2, 29.1], [40.4, 26.2], [38.0, 24.5], [34.5, 26.0], [31.4, 29.9]] },
+  { id: 'fl-soja-bresil', kind: 'cereales', name: 'Soja et maïs du Brésil vers la Chine', tag: 'Santos vers Shanghai, par le cap de Bonne-Espérance', asof: 'tracé indicatif', zoom: 0.4,
+    text: 'Route habituelle des exportations agricoles brésiliennes vers l’Asie de l’Est, par l’Atlantique Sud, l’océan Indien et Malacca. Tracé schématique.',
+    wp: [[-24.0, -45.0], [-30.0, -30.0], [-37.0, 0.0], [-36.5, 20.0], [-33.0, 36.0], [-20.0, 58.0], [-8.0, 75.0], [5.0, 90.0], [3.5, 98.5]].concat(MAL_E) },
+  { id: 'fl-grain-us-asie', kind: 'cereales', name: 'Céréales américaines vers l’Asie', tag: 'Golfe du Mexique, via Panama', asof: 'tracé indicatif', zoom: 0.4,
+    text: 'Route habituelle des cargos depuis le delta du Mississippi par le canal de Panama et le Pacifique. Tracé schématique.',
+    wp: [[28.9, -89.4], [25.0, -90.0]].concat(PANAMA_E) },
+  { id: 'fl-cobalt', kind: 'metaux', name: 'Cobalt du Congo vers la Chine', tag: 'Kolwezi, Dar es Salaam, Shanghai', asof: 'tracé indicatif', zoom: 0.4,
+    text: 'La RDC fournit l’essentiel du cobalt mondial, raffiné ensuite surtout en Chine. Tracé indicatif : route terrestre vers Dar es Salaam, puis maritime par Malacca. Pas de volume vérifié ici.',
+    wp: [[-10.7, 25.5], [-6.8, 39.3], [-4.0, 50.0], [0.0, 70.0], [5.0, 90.0], [3.5, 98.5]].concat(MAL_E) },
+  { id: 'fl-lithium', kind: 'metaux', name: 'Lithium du Chili vers la Chine', tag: 'Antofagasta vers Shanghai', asof: 'tracé indicatif', zoom: 0.3,
+    text: 'Route du Pacifique entre les ports chiliens et la Chine, grande raffineuse de lithium. Tracé schématique, sans donnée de volume.',
+    wp: [[-23.6, -70.4], [-22.0, -110.0], [-5.0, -150.0], [15.0, -178.0], [28.0, 160.0], [27.0, 135.0], [28.0, 124.0], [31.0, 123.0]] },
+  { id: 'fl-terres-rares', kind: 'metaux', name: 'Terres rares de Chine vers l’Europe', tag: 'Aimants et oxydes, tracé direct', asof: 'tracé indicatif', zoom: 0.5,
+    text: 'La Chine domine le raffinage des terres rares et la fabrication d’aimants. Le tracé est un arc direct entre Baotou et l’Europe du Nord-Ouest, pas la route réelle (rail, air, mer). Pas de volume vérifié ici.',
+    from: [40.8, 111.7], to: [51.9, 4.4] },
+  { id: 'fl-cont-suez', kind: 'conteneurs', name: 'Conteneurs Asie–Europe par Suez', tag: 'Shanghai vers Rotterdam, trafic mer Rouge non vérifié', asof: 'tracé indicatif', zoom: 0.4,
+    text: 'Route la plus courte entre l’Asie de l’Est et l’Europe, par Malacca, Bab el-Mandeb et Suez. Je n’ai pas de source datée sur l’état actuel du trafic en mer Rouge. En cas de perturbation, les navires passent par le cap de Bonne-Espérance (route voisine).',
+    wp: [[31.0, 123.0], [26.0, 122.0], [21.0, 117.5], [14.0, 112.0], [8.0, 108.0], [1.3, 103.8], [3.5, 98.5], [5.0, 90.0], [6.0, 78.5], [10.0, 65.0], [12.0, 55.0], [12.2, 45.5], [12.6, 43.4], [15.5, 41.8], [21.0, 38.5], [27.5, 34.0]].concat(SUEZ_N) },
+  { id: 'fl-cont-cap', kind: 'conteneurs', name: 'Conteneurs Asie–Europe par le Cap', tag: 'Route de contournement', asof: 'tracé indicatif', zoom: 0.4,
+    text: 'Route de contournement de l’Afrique, plus longue d’environ dix jours de mer, empruntée quand Suez ou la mer Rouge sont jugés trop risqués. Tracé schématique.',
+    wp: [[31.0, 123.0], [26.0, 122.0], [21.0, 117.5], [14.0, 112.0], [8.0, 108.0], [1.3, 103.8], [3.5, 98.5], [5.0, 90.0], [-8.0, 75.0], [-20.0, 58.0], [-33.0, 36.0]].concat(CAPE_W) },
+  { id: 'fl-dette-cn', kind: 'finance', name: 'Dette américaine détenue par la Chine', tag: '618 Md$ (TIC, septembre 2026)', asof: 'sept. 2026', zoom: 0.4, per: 7000,
+    text: 'Selon un article de 247WallSt daté du 29 septembre 2026, la Chine détient 618 milliards de dollars de dette publique américaine, et seuls deux pays en détiennent davantage. La flèche va du détenteur vers les États-Unis.',
+    from: [39.9, 116.4], to: [38.9, -77.0] },
+  { id: 'fl-dette-jp', kind: 'finance', name: 'Dette américaine détenue par le Japon', tag: 'Montant non vérifié ici', asof: 'indicatif', zoom: 0.4, per: 7000,
+    text: 'Le Japon fait partie des deux plus gros détenteurs étrangers de dette publique américaine, d’après mes connaissances, sans montant daté vérifié ici (statistiques TIC du Trésor américain). La flèche va du détenteur vers les États-Unis.',
+    from: [35.7, 139.7], to: [38.9, -77.0] },
+  { id: 'fl-dette-uk', kind: 'finance', name: 'Dette américaine détenue par le Royaume-Uni', tag: 'Montant non vérifié ici', asof: 'indicatif', zoom: 0.4, per: 7000,
+    text: 'Le Royaume-Uni fait partie des plus gros détenteurs étrangers de dette publique américaine, d’après mes connaissances, sans montant daté vérifié ici (statistiques TIC du Trésor américain). La flèche va du détenteur vers les États-Unis.',
+    from: [51.5, -0.1], to: [38.9, -77.0] },
+  { id: 'fl-armes-de', kind: 'armes', name: 'Aide militaire allemande à l’Ukraine', tag: 'Montant non vérifié ici', asof: 'indicatif', zoom: 1.8,
+    text: 'L’Allemagne est l’un des principaux soutiens militaires de l’Ukraine en Europe. D’après le titre d’un communiqué de l’institut de Kiel (août 2026), l’Europe mène l’aide à l’Ukraine. Montant par pays non vérifié ici.',
+    from: [52.5, 13.4], to: [50.45, 30.5] },
+  { id: 'fl-armes-uk', kind: 'armes', name: 'Aide militaire britannique à l’Ukraine', tag: 'Montant non vérifié ici', asof: 'indicatif', zoom: 1.6,
+    text: 'Le Royaume-Uni fait partie des principaux soutiens militaires de l’Ukraine. Montant non vérifié ici.',
+    from: [51.5, -0.1], to: [50.45, 30.5] },
+  { id: 'fl-armes-us-ua', kind: 'armes', name: 'Armes américaines vers l’Ukraine', tag: 'Montant non vérifié ici', asof: 'indicatif', zoom: 0.5,
+    text: 'D’après le titre d’un communiqué de l’institut de Kiel (août 2026), l’Europe mène l’aide à l’Ukraine mais les armes américaines restent déterminantes. Montant non vérifié ici.',
+    from: [38.9, -77.0], to: [50.45, 30.5] },
+  { id: 'fl-armes-us-il', kind: 'armes', name: 'Aide militaire américaine à Israël', tag: 'Montant non vérifié ici', asof: 'indicatif', zoom: 0.8,
+    text: 'Les États-Unis sont le principal fournisseur d’armes d’Israël. Je n’ai pas de montant 2026 vérifié ici.',
+    from: [38.9, -77.0], to: [32.1, 34.8] }
+);
 FLOWS.forEach((f) => {
-  if (f.wp) { f.pts = []; for (let i = 1; i < f.wp.length; i++) { const seg = arcPts(f.wp[i - 1], f.wp[i], () => f.h, 1.2); f.pts.push(...(i > 1 ? seg.slice(1) : seg)); } }
-  else f.pts = arcPts(f.from, f.to, (t) => f.h * 4 * t * (1 - t), 0.6);
+  if (f.wp) { f.pts = []; for (let i = 1; i < f.wp.length; i++) { const seg = arcPts(f.wp[i - 1], f.wp[i], 1.6); f.pts.push(...(i > 1 ? seg.slice(1) : seg)); } }
+  else f.pts = arcPts(f.from, f.to, FLUX_KIND[f.kind].style === 'arc' ? 0.8 : 1.5);
   f.cum = [0];
   for (let i = 1; i < f.pts.length; i++) { const a = toVec(f.pts[i - 1].lat, f.pts[i - 1].lng), b = toVec(f.pts[i].lat, f.pts[i].lng); f.cum.push(f.cum[i - 1] + Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])))); }
-  const L = f.cum[f.cum.length - 1]; f.cum = f.cum.map((v) => v / L);
-  const m = f.pts[Math.floor(f.pts.length / 2)]; f.lat = m.lat; f.lng = m.lng;
-  f.sp = [];
+  const tot = f.cum[f.cum.length - 1]; f.cum = f.cum.map((v) => v / tot);
+  const m = f.pts[Math.floor(f.pts.length / 2)]; if (f.lat == null) { f.lat = m.lat; f.lng = m.lng; }
+  f.sp = []; f._a = 1;
 });
+FLOWS.push(
+  { id: 'fl-tr', kind: 'flotte', name: 'Porte-avions Theodore Roosevelt en route', tag: 'San Diego vers le Moyen-Orient, via Singapour', asof: 'fin sept.–oct. 2026', zoom: 0.4,
+    text: 'Selon TWZ, le Theodore Roosevelt a quitté San Diego le 27 septembre 2026 pour relever le George Washington au Moyen-Orient, puis USNI News l’a signalé en escale à Singapour (date non vérifiée ici). Le tracé entre les deux est schématique, les positions réelles en mer ne sont pas publiques.',
+    wp: [[32.7, -117.2], [25.0, -140.0], [20.0, -170.0], [22.0, 165.0], [20.0, 140.0], [12.0, 118.0], [1.3, 104.0], [3.5, 98.5], [5.0, 90.0], [6.0, 78.5], [12.0, 68.0], [20.0, 62.0]] },
+  { id: 'fl-lincoln', kind: 'flotte', name: 'Porte-avions Abraham Lincoln, retour', tag: 'Hawaï vers San Diego', asof: '30 sept. 2026', zoom: 0.4,
+    text: 'Selon TWZ au 30 septembre 2026, l’Abraham Lincoln faisait route vers l’est dans la zone d’Hawaï, de retour à San Diego après environ dix mois de déploiement. Tracé schématique.',
+    from: [21.0, -158.0], to: [32.7, -117.2] }
+);
+const flowVis = (f) => (f.kind === 'flotte' ? active.has('flotte') : flowOn[f.kind]);
+const SHIP = { 'fl-golfe-asie': ['Pétrolier', [251, 139, 30]], 'fl-golfe-europe': ['Pétrolier', [251, 139, 30]], 'fl-lng-us-eu': ['Méthanier', [255, 214, 166]], 'fl-lng-us-asie': ['Méthanier', [255, 214, 166]],
+  'fl-ble-noire': ['Vraquier', [200, 200, 200]], 'fl-soja-bresil': ['Vraquier', [200, 200, 200]], 'fl-grain-us-asie': ['Vraquier', [200, 200, 200]], 'fl-cobalt': ['Minéralier', [200, 200, 200]], 'fl-lithium': ['Minéralier', [200, 200, 200]],
+  'fl-cont-suez': ['Porte-conteneurs', [255, 255, 255]], 'fl-cont-cap': ['Porte-conteneurs', [255, 255, 255]] };
+FLOWS.forEach((f) => { if (SHIP[f.id]) { f.ship = SHIP[f.id][0]; f.shipCol = SHIP[f.id][1]; } });
 const FLOW_BY_ID = Object.fromEntries(FLOWS.map((f) => [f.id, f]));
+
+/* ---------- états des repères ---------- */
+const PRI = { marches: 0, conflits: 0, choke: 1, flotte: 1, banques: 1, matieres: 2 };
+DATA.forEach((d) => { d._a = 1; d._col = 0; d._lit = 0; d._h = 0; });
+updateExchanges(true);
 
 /* ---------- géométries ---------- */
 const byCountry = {};
 DATA.forEach((d) => d.ids && Object.keys(d.ids).forEach((k) => { byCountry[k] = d; }));
-
-/* Les polygones qui franchissent l'antiméridien (Russie, Fidji) et l'Antarctique sont découpés,
-   sinon la couleur déborde sur toute la calotte polaire. */
 const unwrap = (ring) => { const o = [[ring[0][0], ring[0][1]]]; let off = 0; for (let i = 1; i < ring.length; i++) { const d = ring[i][0] - ring[i - 1][0]; if (d > 180) off -= 360; else if (d < -180) off += 360; o.push([ring[i][0] + off, ring[i][1]]); } return o; };
 const cross = (a, b, X) => [X, a[1] + (X - a[0]) / (b[0] - a[0]) * (b[1] - a[1])];
 function clipRing(r, X, keepGE) {
@@ -297,6 +504,8 @@ function clipRing(r, X, keepGE) {
 const area = (r) => { let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a / 2); };
 const closeRing = (r) => r.concat([[r[0][0], r[0][1]]]);
 const hasJump = (ring) => { for (let i = 1; i < ring.length; i++) if (Math.abs(ring[i][0] - ring[i - 1][0]) > 180) return true; return false; };
+/* Les polygones qui franchissent l'antiméridien (Russie, Fidji) et l'Antarctique sont découpés,
+   sinon la couleur déborde sur toute la calotte polaire. */
 function fixGeometry(f) {
   const g = f.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates, anta = String(f.id) === '010';
   const out = []; let pole = null;
@@ -327,7 +536,32 @@ const grat = { type: 'FeatureCollection', features: [] };
 for (let lng = -150; lng <= 150; lng += 30) { const c = []; for (let lat = -80; lat <= 80; lat += 5) c.push([lng, lat]); grat.features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: c } }); }
 for (let lat = -60; lat <= 60; lat += 30) { const c = []; for (let lng = -180; lng <= 180; lng += 5) c.push([lng, lat]); grat.features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: c } }); }
 
-/* Trois niveaux de détail : 110 m globe entier, 50 m à mi-zoom, 10 m (îles, archipels) en zoomant */
+/* ---------- ombre jour / nuit ---------- */
+function sunPos(date) {
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0), N = Math.floor((date - start) / 86400000);
+  const g = TAU / 365 * (N - 1 + (date.getUTCHours() - 12) / 24);
+  const eqt = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const utcMin = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60;
+  return { lng: ((-(utcMin + eqt - 720) / 4 + 540) % 360) - 180, decl };
+}
+function nightGeo(date) {
+  const s = sunPos(date), sd = Math.sin(s.decl), cd = Math.cos(s.decl), feats = [];
+  [0.12, 0.04, -0.04, -0.13].forEach((c, idx) => {
+    const lo = [], hi = [];
+    for (let lng = -180; lng <= 180; lng += 2) {
+      const ch = Math.cos((lng - s.lng) * RAD); let mn = null, mx = null;
+      for (let lat = -85; lat <= 85; lat += 0.5) { if (Math.sin(lat * RAD) * sd + Math.cos(lat * RAD) * cd * ch < c) { if (mn === null) mn = lat; mx = lat; } }
+      if (mn === null) mn = mx = 0;
+      lo.push([lng, mn]); hi.push([lng, mx]);
+    }
+    const ring = lo.concat(hi.reverse()); ring.push(ring[0]);
+    feats.push({ type: 'Feature', properties: { i: idx }, geometry: { type: 'Polygon', coordinates: [ring] } });
+  });
+  return { type: 'FeatureCollection', features: feats };
+}
+
+/* ---------- carte : 3 niveaux de détail ---------- */
 const lat0 = 28;
 const baseZoom = () => Math.log2(0.82 * Math.min(stage.clientWidth, stage.clientHeight) / (163 / Math.cos(lat0 * RAD)));
 let Z0 = baseZoom();
@@ -336,9 +570,11 @@ const TIERS = [
   { k: 'b', topo: TOPO50, min: Z0 + 1.1, max: Z0 + 2.5 },
   { k: 'c', topo: TOPO10, min: Z0 + 2.5, max: 24 }
 ];
-const sources = { g: { type: 'geojson', data: grat } };
-const L = { land: [], lit: [], bor: [], coa: [], sel: [] };
+const sources = { g: { type: 'geojson', data: grat }, night: { type: 'geojson', data: nightGeo(new Date()) }, z: { type: 'geojson', data: { type: 'FeatureCollection', features: zoneFeats } } };
+const LY = { land: [], lit: [], bor: [], coa: [], glow: [], sel: [] };
+const CONF = []; /* couches coupées avec le filtre « conflits » : [id, propriété, valeur] */
 const LW = ['interpolate', ['linear'], ['zoom'], 0, 0.5, 4, 0.9, 8, 1.3];
+const TR = { duration: 380, delay: 0 };
 for (const t of TIERS) {
   const T = t.topo, k = t.k;
   const feats = topojson.feature(T, T.objects.countries).features.filter((f) => f.geometry).map((f) => {
@@ -349,21 +585,34 @@ for (const t of TIERS) {
   sources['b' + k] = { type: 'geojson', data: cleanMesh(topojson.mesh(T, T.objects.countries, (a, b) => a !== b)) };
   sources['k' + k] = { type: 'geojson', data: cleanMesh(topojson.mesh(T, T.objects.countries, (a, b) => a === b)) };
   const z = { minzoom: t.min, maxzoom: t.max };
-  L.land.push({ id: 'land' + k, type: 'fill', source: 'c' + k, ...z, paint: { 'fill-color': '#2d2d2d' } });
-  L.lit.push({ id: 'lit' + k, type: 'fill', source: 'c' + k, ...z, filter: ['>', ['get', 'lv'], 0], paint: { 'fill-color': ['case', ['boolean', ['feature-state', 'hover'], false],
+  LY.land.push({ id: 'land' + k, type: 'fill', source: 'c' + k, ...z, paint: { 'fill-color': '#2d2d2d' } });
+  LY.lit.push({ id: 'lit' + k, type: 'fill', source: 'c' + k, ...z, filter: ['>', ['get', 'lv'], 0], paint: { 'fill-opacity': 1, 'fill-opacity-transition': TR, 'fill-color': ['case', ['boolean', ['feature-state', 'hover'], false],
     ['match', ['get', 'lv'], 3, '#ff9f45', 2, '#d0742a', 1, '#7b4710', '#2d2d2d'],
     ['match', ['get', 'lv'], 3, '#fb8b1e', 2, '#b5600f', 1, '#5e3508', '#2d2d2d']] } });
-  L.bor.push({ id: 'bor' + k, type: 'line', source: 'b' + k, ...z, layout: { 'line-join': 'round' }, paint: { 'line-color': '#4f4f4f', 'line-width': LW } });
-  L.coa.push({ id: 'coa' + k, type: 'line', source: 'k' + k, ...z, layout: { 'line-join': 'round' }, paint: { 'line-color': '#707070', 'line-width': LW } });
-  L.sel.push({ id: 'sel' + k, type: 'line', source: 'c' + k, ...z, filter: ['==', ['get', 'id'], '__none__'], paint: { 'line-color': '#ffffff', 'line-width': 2.2 } });
+  CONF.push(['lit' + k, 'fill-opacity', 1]);
+  LY.bor.push({ id: 'bor' + k, type: 'line', source: 'b' + k, ...z, layout: { 'line-join': 'round' }, paint: { 'line-color': '#4f4f4f', 'line-width': LW } });
+  LY.coa.push({ id: 'coa' + k, type: 'line', source: 'k' + k, ...z, layout: { 'line-join': 'round' }, paint: { 'line-color': '#707070', 'line-width': LW } });
+  /* contour lumineux des pays en guerre ouverte */
+  LY.glow.push({ id: 'glw' + k, type: 'line', source: 'c' + k, ...z, filter: ['==', ['get', 'lv'], 3], layout: { 'line-join': 'round' }, paint: { 'line-color': '#fb8b1e', 'line-width': 9, 'line-blur': 9, 'line-opacity': 0.6, 'line-opacity-transition': TR } });
+  LY.glow.push({ id: 'edg' + k, type: 'line', source: 'c' + k, ...z, filter: ['==', ['get', 'lv'], 3], layout: { 'line-join': 'round' }, paint: { 'line-color': '#ffd6a6', 'line-width': 1.4, 'line-opacity': 0.95, 'line-opacity-transition': TR } });
+  CONF.push(['glw' + k, 'line-opacity', 0.6], ['edg' + k, 'line-opacity', 0.95]);
+  LY.sel.push({ id: 'sel' + k, type: 'line', source: 'c' + k, ...z, filter: ['==', ['get', 'id'], '__none__'], paint: { 'line-color': '#ffffff', 'line-width': 2.2 } });
 }
+const zl = [];
+[[3, 0.38], [2, 0.3], [1, 0.22]].forEach(([lv, op]) => { zl.push({ id: 'zf' + lv, type: 'fill', source: 'z', filter: ['==', ['get', 'lv'], lv], paint: { 'fill-color': '#fb8b1e', 'fill-opacity': op, 'fill-opacity-transition': TR } }); CONF.push(['zf' + lv, 'fill-opacity', op]); });
+const zlines = [
+  { id: 'zline', type: 'line', source: 'z', layout: { 'line-join': 'round' }, paint: { 'line-color': '#ffb36b', 'line-width': 1.4, 'line-dasharray': [2, 2], 'line-opacity': 0.95, 'line-opacity-transition': TR } },
+  { id: 'zsel', type: 'line', source: 'z', filter: ['==', ['get', 'id'], '__none__'], paint: { 'line-color': '#ffffff', 'line-width': 2.4 } }
+];
+CONF.push(['zline', 'line-opacity', 0.95]);
+const nightL = [0, 1, 2, 3].map((i) => ({ id: 'nt' + i, type: 'fill', source: 'night', filter: ['==', ['get', 'i'], i], paint: { 'fill-color': '#000000', 'fill-opacity': 0.13, 'fill-opacity-transition': { duration: 600, delay: 0 } } }));
 const style = {
   version: 8,
   projection: { type: 'globe' },
   sources,
-  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#121212' } }, ...L.land,
+  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#121212' } }, ...LY.land,
     { id: 'grat', type: 'line', source: 'g', paint: { 'line-color': '#ffffff', 'line-opacity': 0.07, 'line-width': 0.7 } },
-    ...L.lit, ...L.bor, ...L.coa, ...L.sel]
+    ...LY.lit, ...zl, ...nightL, ...LY.bor, ...LY.coa, ...LY.glow, zlines[0], ...LY.sel, zlines[1]]
 };
 
 let map;
@@ -373,21 +622,23 @@ try {
     canvasContextAttributes: { antialias: true } });
 } catch (e) {
   stage.insertAdjacentHTML('beforeend', '<div id="fail">Le globe n’a pas pu démarrer : WebGL est indisponible dans ce navigateur.</div>');
+  stage.classList.add('on');
   throw e;
 }
 map.touchZoomRotate.disableRotation();
 map.scrollZoom.disable();
 
-/* zoom fluide : la molette fixe une cible, la caméra la rejoint progressivement */
-let tz = Z0, zAnim = false;
+/* zoom fluide : la molette fixe une cible, la caméra la rejoint de façon exponentielle (indépendant de la fréquence d'images) */
+let tz = Z0, zAnim = false, zT = 0;
 const clampZ = (z) => Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), z));
-function zstep() {
+function zstep(t) {
+  const dt = Math.min(50, t - zT); zT = t;
   const d = tz - map.getZoom();
-  if (Math.abs(d) < 0.003) { map.setZoom(tz); zAnim = false; return; }
-  map.setZoom(map.getZoom() + d * 0.2);
+  if (Math.abs(d) < 0.002) { map.setZoom(tz); zAnim = false; return; }
+  map.setZoom(map.getZoom() + d * (1 - Math.exp(-dt / 85)));
   requestAnimationFrame(zstep);
 }
-function zoomBy(dz) { if (!zAnim) tz = map.getZoom(); tz = clampZ(tz + dz); if (!zAnim) { zAnim = true; requestAnimationFrame(zstep); } }
+function zoomBy(dz) { if (!zAnim) tz = map.getZoom(); tz = clampZ(tz + dz); if (!zAnim) { zAnim = true; zT = performance.now(); requestAnimationFrame(zstep); } }
 map.getCanvasContainer().addEventListener('wheel', (e) => {
   e.preventDefault();
   let dy = e.deltaY; if (e.deltaMode === 1) dy *= 33; else if (e.deltaMode === 2) dy *= 400;
@@ -396,28 +647,26 @@ map.getCanvasContainer().addEventListener('wheel', (e) => {
 map.on('zoomend', () => { if (!zAnim && !flying) tz = map.getZoom(); });
 $('zin').addEventListener('click', () => zoomBy(1));
 $('zout').addEventListener('click', () => zoomBy(-1));
-function flyTo(lng, lat, z) { flying = true; tz = z; zAnim = false; map.flyTo({ center: [lng, lat], zoom: z, duration: 1000, essential: true }); }
+function glide(lng, lat, z, ms) { flying = true; zAnim = false; tz = z; map.easeTo({ center: [lng, lat], zoom: z, duration: ms || 1100, easing: ease, essential: true }); }
 map.on('moveend', () => { if (flying) { flying = false; tz = map.getZoom(); } });
-$('reset').addEventListener('click', () => { setRot(!reduce); flyTo(40, lat0, Z0); });
+$('reset').addEventListener('click', () => { setRot(!reduce); glide(40, lat0, Z0, 1200); });
 function setRot(on) { rot = on; $('rot').setAttribute('aria-pressed', on); }
 $('rot').addEventListener('click', () => setRot(!rot));
 setRot(rot);
 map.on('dragstart', () => setRot(false));
 
-/* ---------- canevas : noms de pays (rafraîchis au mouvement) et flux/marqueurs (animés) ---------- */
+/* ---------- calques : noms (au mouvement) et flux / repères (animés) ---------- */
 const cvL = $('lab'), cvF = $('fx'), ctxL = cvL.getContext('2d'), ctxF = cvF.getContext('2d');
-let W = 0, H = 0, dpr = 1;
+let W = 0, H = 0, dpr = 1, dirty = true;
 function sizeOverlay() { W = stage.clientWidth; H = stage.clientHeight; dpr = Math.min(2, window.devicePixelRatio || 1); for (const c of [cvL, cvF]) { c.width = W * dpr; c.height = H * dpr; c.style.width = W + 'px'; c.style.height = H + 'px'; } dirty = true; }
-let dirty = true;
 sizeOverlay();
 new ResizeObserver(() => { sizeOverlay(); Z0 = baseZoom(); map.setMinZoom(Z0 - 0.7); map.resize(); }).observe(stage);
 
 const FONT = '500 12px "IBM Plex Sans Condensed", "Arial Narrow", sans-serif';
+const FONT_Z = 'italic 500 12px "IBM Plex Sans Condensed", "Arial Narrow", sans-serif';
 const wcache = {};
 let lastScale = '';
 const cosc = (lng, lat, c) => { const a = lat * RAD, b = c.lat * RAD; return Math.sin(a) * Math.sin(b) + Math.cos(a) * Math.cos(b) * Math.cos((lng - c.lng) * RAD); };
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
-
 function updateScale(c, z) {
   const mpp = 40075016.686 * Math.cos(c.lat * RAD) / (512 * Math.pow(2, z));
   const raw = mpp * 100, pw = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -429,22 +678,38 @@ function updateScale(c, z) {
   if (key !== lastScale) { lastScale = key; $('sbar').style.width = wpx + 'px'; $('skm').textContent = km; $('sx').textContent = x; }
 }
 function drawLabels() {
-  const c = map.getCenter(), z = map.getZoom(), zl = z - Z0;
+  const c = map.getCenter(), z = map.getZoom(), zz = z - Z0;
   ctxL.setTransform(dpr, 0, 0, dpr, 0, 0); ctxL.clearRect(0, 0, W, H);
   updateScale(c, z);
-  if (zl < 0.9) return;
-  const fade = clamp01((zl - 0.9) / 0.5);
+  const placed = [];
+  ctxL.textAlign = 'center'; ctxL.textBaseline = 'middle';
+  /* zones de tension */
+  if (active.has('conflits') && zz > 0.15) {
+    const fz = clamp01((zz - 0.15) / 0.4);
+    ctxL.font = FONT_Z;
+    for (const d of DATA) {
+      if (!d.zone) continue;
+      const cs = cosc(d.lng, d.lat, c); if (cs < 0.3) continue;
+      const p = map.project([d.lng, d.lat]); if (p.x < -60 || p.y < -10 || p.x > W + 60 || p.y > H + 10) continue;
+      const w = ctxL.measureText(d.name).width;
+      placed.push([p.x - w / 2 - 4, p.y - 8, w + 8, 16]);
+      const a = fz * clamp01((cs - 0.3) / 0.25);
+      ctxL.lineWidth = 3; ctxL.strokeStyle = 'rgba(0,0,0,' + (0.55 * a) + ')'; ctxL.strokeText(d.name, p.x, p.y);
+      ctxL.fillStyle = 'rgba(255,190,120,' + a + ')'; ctxL.fillText(d.name, p.x, p.y);
+    }
+  }
+  if (zz < 0.9) return;
+  const fade = clamp01((zz - 0.9) / 0.5);
   const pxdeg = 1.4224 * Math.pow(2, z) / Math.max(0.2, Math.cos(c.lat * RAD));
-  ctxL.font = FONT; ctxL.textAlign = 'center'; ctxL.textBaseline = 'middle';
+  ctxL.font = FONT;
   const lit = active.has('conflits'), order = [];
   for (const l of LABELS) { if (l.id === '010') continue; order.push([l, lit && byCountry[l.id] ? byCountry[l.id].ids[l.id] : 0]); }
   order.sort((a, b) => (b[1] > 0) - (a[1] > 0));
-  const placed = [];
   for (const [l, lv] of order) {
     const cs = cosc(l.lng, l.lat, c);
     if (cs < 0.3) continue;
     const w = wcache[l.n] || (wcache[l.n] = ctxL.measureText(l.n).width);
-    if (!(lv > 0 || Math.sqrt(l.a) * pxdeg > w * 0.62 || zl >= 2.3)) continue;
+    if (!(lv > 0 || Math.sqrt(l.a) * pxdeg > w * 0.62 || zz >= 2.3)) continue;
     const p = map.project([l.lng, l.lat]);
     if (p.x < -40 || p.y < -10 || p.x > W + 40 || p.y > H + 10) continue;
     const bx = p.x - w / 2 - 4, by = p.y - 8, bw = w + 8, bh = 16;
@@ -459,8 +724,14 @@ function drawLabels() {
   }
 }
 
-/* projection d'un point en altitude : la position de surface vient de MapLibre, le relief est ajouté en radial */
-let CX = 0, CY = 0, cL = 0, cl = 0, SC = 1;
+/* projection : la position de surface vient de MapLibre, la hauteur des arcs est en pixels, proportionnelle à la corde
+   et plafonnée, donc les arcs restent collés à la carte à tous les niveaux de zoom */
+let CX = 0, CY = 0, cL = 0, cl = 0, SC = 1, haloD = 0, haloOp = -1;
+const HALO_K = 0.84;
+function vec(lng, lat) {
+  const la = lat * RAD, dl = lng * RAD - cL;
+  return [Math.cos(la) * Math.sin(dl), Math.cos(cl) * Math.sin(la) - Math.sin(cl) * Math.cos(la) * Math.cos(dl), Math.sin(cl) * Math.sin(la) + Math.cos(cl) * Math.cos(la) * Math.cos(dl)];
+}
 function frameSetup() {
   const c = map.getCenter(); CX = W / 2; CY = H / 2; cL = c.lng * RAD; cl = c.lat * RAD;
   const v = vec(c.lng + 35, c.lat), S = map.project([c.lng + 35, c.lat]);
@@ -470,19 +741,14 @@ function frameSetup() {
   const op = Math.round(100 * clamp01(1 - (map.getZoom() - Z0 - 0.2) / 0.6)) / 100;
   if (op !== haloOp) { haloOp = op; hs.opacity = op; }
 }
-let haloD = 0, haloOp = -1;
-const HALO_K = 0.84;
-function vec(lng, lat) {
-  const la = lat * RAD, dl = lng * RAD - cL;
-  return [Math.cos(la) * Math.sin(dl), Math.cos(cl) * Math.sin(la) - Math.sin(cl) * Math.cos(la) * Math.cos(dl), Math.sin(cl) * Math.sin(la) + Math.cos(cl) * Math.cos(la) * Math.cos(dl)];
+function proj(lng, lat) {
+  const v = vec(lng, lat); let x, y;
+  if (v[2] > 0.07) { const S = map.project([lng, lat]); x = S.x; y = S.y; } else { x = CX + SC * v[0]; y = CY - SC * v[1]; }
+  return { x, y, vx: v[0], vy: v[1], vz: v[2], v: v[2] > 0.07 };
 }
-function p3(lng, lat, h) {
-  const v = vec(lng, lat), r = 1 + h;
-  const vis = v[2] * r > 0 || r * r * (v[0] * v[0] + v[1] * v[1]) >= 1;
-  let x, y;
-  if (v[2] > 0.02) { const S = map.project([lng, lat]); x = CX + (S.x - CX) * r; y = CY + (S.y - CY) * r; }
-  else { x = CX + SC * r * v[0]; y = CY - SC * r * v[1]; }
-  return { x, y, v: vis, z: v[2] };
+function lift(P, h) {
+  const w = Math.min(1, Math.hypot(P.vx, P.vy)); const dx = w * P.vx, dy = -w * P.vy - (1 - w), n = Math.hypot(dx, dy) || 1;
+  return { x: P.x + dx / n * h, y: P.y + dy / n * h };
 }
 function posAt(f, u) {
   const cum = f.cum; let lo = 0, hi = cum.length - 1;
@@ -493,74 +759,135 @@ function posAt(f, u) {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-let hits = [], hoverHit = null, hoverFlow = null, lastFx = 0, movedFlag = true;
-const flowsActive = () => FLOWS.some((f) => flowOn[f.kind]);
-function drawFlow(f, T) {
-  const x = ctxF, sel = selectedId === f.id, hov = hoverFlow === f.id;
-  f.sp = f.pts.map((p) => p3(p.lng, p.lat, p.h));
-  x.lineJoin = 'round'; x.lineCap = 'round';
-  if (f.kind === 'frappe') {
-    /* trace au sol, pour lire la hauteur de l'arc */
-    const g = f.pts.map((p) => p3(p.lng, p.lat, 0));
+let hits = [], hoverHit = null, hoverFlow = null, lastFx = 0, movedFlag = true, lastT = 0;
+const flowsActive = () => FLOWS.some((f) => f._a > 0.01 || flowVis(f));
+function drawFlow(f, T, k) {
+  const x = ctxF, KD = FLUX_KIND[f.kind], sel = selectedId === f.id, hov = hoverFlow === f.id, A = f._a, arc = KD.style === 'arc', cr = KD.col[0], cg = KD.col[1], cb = KD.col[2];
+  const S = f.pts.map((p) => proj(p.lng, p.lat));
+  const chord = Math.hypot(S[0].x - S[S.length - 1].x, S[0].y - S[S.length - 1].y);
+  const apex = arc ? Math.min(chord * 0.22, 150) : 3;
+  f.sp = S.map((P, i) => { const t = f.cum[i], q = lift(P, arc ? apex * 4 * t * (1 - t) : apex); return { x: q.x, y: q.y, v: P.v, gx: P.x, gy: P.y }; });
+  x.globalAlpha = A; x.lineJoin = 'round'; x.lineCap = 'round';
+  if (arc) {
     x.beginPath();
-    for (let i = 1; i < g.length; i++) if (g[i - 1].v && g[i].v) { x.moveTo(g[i - 1].x, g[i - 1].y); x.lineTo(g[i].x, g[i].y); }
+    for (let i = 1; i < f.sp.length; i++) { const a = f.sp[i - 1], b = f.sp[i]; if (a.v && b.v) { x.moveTo(a.gx, a.gy); x.lineTo(b.gx, b.gy); } }
     x.setLineDash([2, 4]); x.strokeStyle = 'rgba(255,255,255,0.22)'; x.lineWidth = 1; x.stroke(); x.setLineDash([]);
   }
   x.beginPath();
   for (let i = 1; i < f.sp.length; i++) { const a = f.sp[i - 1], b = f.sp[i]; if (a.v && b.v) { x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); } }
-  if (f.kind === 'energie') { x.setLineDash([3, 5]); x.strokeStyle = 'rgba(214,120,30,' + (sel || hov ? 0.95 : 0.6) + ')'; x.lineWidth = sel || hov ? 2 : 1.4; }
-  else { x.setLineDash([]); x.strokeStyle = 'rgba(251,139,30,' + (sel || hov ? 0.7 : 0.32) + ')'; x.lineWidth = sel || hov ? 2 : 1.2; }
+  if (!arc) { x.setLineDash(f.off ? [2, 7] : [3, 5]); x.strokeStyle = f.off ? 'rgba(150,150,150,' + (sel || hov ? 0.9 : 0.5) + ')' : 'rgba(' + cr + ',' + cg + ',' + cb + ',' + (sel || hov ? 0.95 : 0.6) + ')'; x.lineWidth = sel || hov ? 2 : 1.4; }
+  else { x.strokeStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + (sel || hov ? 0.75 : 0.34) + ')'; x.lineWidth = sel || hov ? 2 : 1.2; }
   x.stroke(); x.setLineDash([]);
-  if (f.kind === 'energie') {
-    const n = 5;
-    for (let k = 0; k < n; k++) {
-      const u = ((T / 16000) + k / n) % 1, p = posAt(f, u);
-      if (!p) continue;
-      x.fillStyle = 'rgba(251,139,30,0.22)'; x.beginPath(); x.arc(p.x, p.y, 5, 0, 6.2832); x.fill();
-      x.fillStyle = '#fb8b1e'; x.beginPath(); x.arc(p.x, p.y, 2.4, 0, 6.2832); x.fill();
+  if (!arc) {
+    if (!f.off && shipsOn && f.ship) {
+      const n = 4, sc = Math.max(0.9, Math.min(1.5, 0.9 + 0.12 * (map.getZoom() - Z0))), col = f.shipCol;
+      for (let j = 0; j < n; j++) {
+        const rev = j % 2 === 1, u = ((T / 30000) + j / n) % 1, uu = rev ? 1 - u : u, p = posAt(f, uu);
+        if (!p) continue;
+        const q = posAt(f, Math.max(0, Math.min(1, uu + (rev ? -0.004 : 0.004))));
+        if (!q) continue;
+        const ang = Math.atan2(q.y - p.y, q.x - p.x);
+        x.save(); x.translate(p.x, p.y); x.rotate(ang); x.scale(sc, sc);
+        x.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0.25)'; x.beginPath(); x.arc(0, 0, 8, 0, TAU); x.fill();
+        x.beginPath(); x.moveTo(6, 0); x.lineTo(2.5, 2.6); x.lineTo(-5, 2.6); x.lineTo(-5, -2.6); x.lineTo(2.5, -2.6); x.closePath();
+        x.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')'; x.strokeStyle = '#000'; x.lineWidth = 1; x.stroke(); x.fill();
+        x.restore();
+      }
+    } else if (!f.off) {
+      const n = 5;
+      for (let j = 0; j < n; j++) {
+        const p = posAt(f, ((T / 16000) + j / n) % 1);
+        if (!p) continue;
+        x.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',0.22)'; x.beginPath(); x.arc(p.x, p.y, 5, 0, TAU); x.fill();
+        x.fillStyle = 'rgb(' + cr + ',' + cg + ',' + cb + ')'; x.beginPath(); x.arc(p.x, p.y, 2.4, 0, TAU); x.fill();
+      }
+    } else {
+      const m = f.sp[Math.floor(f.sp.length / 2)];
+      if (m && m.v) { x.strokeStyle = 'rgba(200,200,200,0.8)'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(m.x - 4, m.y - 4); x.lineTo(m.x + 4, m.y + 4); x.moveTo(m.x + 4, m.y - 4); x.lineTo(m.x - 4, m.y + 4); x.stroke(); }
     }
   } else {
-    const n = 3;
-    for (let k = 0; k < n; k++) {
-      const u = ((T / 3400) + k / n) % 1, head = posAt(f, u);
-      for (let j = 0; j < 14; j++) {
-        const u0 = u - 0.16 * (1 - j / 14), u1 = u - 0.16 * (1 - (j + 1) / 14);
+    const n = 3, per = f.per || 3400;
+    for (let j = 0; j < n; j++) {
+      const u = ((T / per) + j / n) % 1, head = posAt(f, u);
+      for (let q = 0; q < 14; q++) {
+        const u0 = u - 0.16 * (1 - q / 14), u1 = u - 0.16 * (1 - (q + 1) / 14);
         if (u0 < 0 || u1 < 0) continue;
         const a = posAt(f, u0), b = posAt(f, u1);
         if (!a || !b) continue;
-        x.strokeStyle = 'rgba(255,' + (150 + j * 6) + ',' + (60 + j * 8) + ',' + (0.1 + 0.85 * (j + 1) / 14) + ')'; x.lineWidth = 0.6 + 2.2 * (j + 1) / 14;
+        x.strokeStyle = 'rgba(' + cr + ',' + Math.round(cg + (255 - cg) * q / 20) + ',' + Math.round(cb + (255 - cb) * q / 20) + ',' + (0.1 + 0.85 * (q + 1) / 14) + ')'; x.lineWidth = 0.6 + 2.2 * (q + 1) / 14;
         x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke();
       }
-      if (head) { x.fillStyle = 'rgba(251,139,30,0.3)'; x.beginPath(); x.arc(head.x, head.y, 6, 0, 6.2832); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(head.x, head.y, 2.8, 0, 6.2832); x.fill(); }
-      if (u > 0.93) { const e = f.sp[f.sp.length - 1]; if (e.v) { const ph = (u - 0.93) / 0.07; x.strokeStyle = 'rgba(255,255,255,' + (0.8 * (1 - ph)) + ')'; x.lineWidth = 1.5; x.beginPath(); x.arc(e.x, e.y, 3 + 14 * ph, 0, 6.2832); x.stroke(); } }
+      if (head) { x.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',0.3)'; x.beginPath(); x.arc(head.x, head.y, 6, 0, TAU); x.fill(); x.fillStyle = '#fff'; x.beginPath(); x.arc(head.x, head.y, 2.8, 0, TAU); x.fill(); }
+      if (u > 0.93) { const e = f.sp[f.sp.length - 1]; if (e.v) { const ph = (u - 0.93) / 0.07; x.strokeStyle = 'rgba(255,255,255,' + (0.8 * (1 - ph)) + ')'; x.lineWidth = 1.5; x.beginPath(); x.arc(e.gx, e.gy, 3 + 14 * ph, 0, TAU); x.stroke(); } }
     }
   }
+  x.globalAlpha = 1;
+}
+function rr(x, px, py, w, h, r) { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); }
+function drawMarker(x, d, p, sz, alpha) {
+  x.globalAlpha = alpha; x.lineJoin = 'round';
+  const sh = LAYERS[d.layer].shape;
+  if (sh === 'c') {
+    const r = 5.5 * sz;
+    if (d._lit > 0.02) {
+      const R = r * 3.4, g = x.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, R);
+      g.addColorStop(0, 'rgba(255,255,255,' + (0.42 * d._lit) + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(p.x, p.y, R, 0, TAU); x.fill();
+    }
+    x.lineWidth = 2; x.strokeStyle = mixc([128, 128, 128], [0, 0, 0], d._lit); x.fillStyle = mixc([42, 42, 42], [247, 247, 247], d._lit);
+    x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.fill(); x.stroke();
+  } else if (sh === 'b') {
+    const r = 7 * sz; x.lineWidth = 2; x.strokeStyle = '#f2f2f2'; x.fillStyle = '#000';
+    x.beginPath(); x.moveTo(p.x, p.y - r); x.lineTo(p.x + r * 0.9, p.y + r * 0.7); x.lineTo(p.x - r * 0.9, p.y + r * 0.7); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = '#fb8b1e'; x.beginPath(); x.arc(p.x, p.y + r * 0.1, 1.6 * sz, 0, TAU); x.fill();
+  } else if (sh === 'o') {
+    const r = 7.5 * sz, fr = Math.min(1, (d.g || 0) / 0.25);
+    x.fillStyle = '#000'; x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.fill();
+    x.lineWidth = 2; x.strokeStyle = 'rgba(255,255,255,0.28)'; x.beginPath(); x.arc(p.x, p.y, r, 0, TAU); x.stroke();
+    x.lineWidth = 2.6; x.strokeStyle = '#f2f2f2'; x.beginPath(); x.arc(p.x, p.y, r, -Math.PI / 2, -Math.PI / 2 + TAU * fr); x.stroke();
+    x.fillStyle = '#fb8b1e'; x.beginPath(); x.arc(p.x, p.y, 1.8 * sz, 0, TAU); x.fill();
+  } else if (sh === 'd') {
+    const r = 7.5 * sz; x.lineWidth = 2.4; x.strokeStyle = '#000'; x.fillStyle = '#fb8b1e';
+    x.beginPath(); x.moveTo(p.x, p.y - r); x.lineTo(p.x + r, p.y); x.lineTo(p.x, p.y + r); x.lineTo(p.x - r, p.y); x.closePath(); x.stroke(); x.fill();
+  } else {
+    const r = 5 * sz; x.fillStyle = '#000'; x.strokeStyle = '#f2f2f2'; x.lineWidth = 2; rr(x, p.x - r, p.y - r, r * 2, r * 2, r * 0.45); x.fill(); x.stroke();
+  }
+  if (selectedId === d.id) { x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.arc(p.x, p.y, 12 * sz + 2, 0, TAU); x.stroke(); }
+  x.globalAlpha = 1;
 }
 function drawFx(t) {
   const x = ctxF; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const dt = Math.min(100, Math.max(0, t - lastT)); lastT = t;
+  const k = 1 - Math.exp(-dt / 110);
   frameSetup();
   const T = reduce ? 5000 : t;
-  for (const f of FLOWS) if (flowOn[f.kind]) drawFlow(f, T);
-  hits = [];
-  const c = map.getCenter();
+  for (const f of FLOWS) { f._a = lerp(f._a, flowVis(f) ? 1 : 0, k); if (f._a > 0.01) drawFlow(f, T, k); }
+  /* repères : taille selon le zoom, regroupement des repères qui se chevauchent */
+  const c = map.getCenter(), zz = map.getZoom() - Z0, base = Math.max(0.6, Math.min(1.3, 0.66 + 0.12 * zz)), thr = 15 * base;
+  const items = [];
   for (const d of DATA) {
-    if (d.ids || !active.has(d.layer)) continue;
-    const cs = cosc(d.lng, d.lat, c);
-    if (cs < 0.12) continue;
+    if (d.ids || d.zone) continue;
+    d._a = lerp(d._a, active.has(d.layer) ? 1 : 0, k);
+    d._lit = lerp(d._lit, d.open ? 1 : 0, 1 - Math.exp(-dt / 500));
+    d._h = lerp(d._h, hoverHit === d.id || selectedId === d.id ? 1 : 0, k * 1.4);
+    if (d._a < 0.01) continue;
+    const cs = cosc(d.lng, d.lat, c); if (cs < 0.12) continue;
     const p = map.project([d.lng, d.lat]);
     if (p.x < -20 || p.y < -20 || p.x > W + 20 || p.y > H + 20) continue;
-    const a = clamp01((cs - 0.12) / 0.15);
-    x.globalAlpha = a;
-    const k = hoverHit === d.id ? 1.3 : 1, sh = LAYERS[d.layer].shape;
-    if (sh === 'k') { const ph = reduce ? 0.4 : (t % 2000) / 2000; x.strokeStyle = 'rgba(251,139,30,' + (0.7 * (1 - ph)) + ')'; x.lineWidth = 2; x.beginPath(); x.arc(p.x, p.y, 7 + 13 * ph, 0, 6.2832); x.stroke(); }
-    x.lineWidth = 2; x.strokeStyle = '#000';
-    if (sh === 'c' || sh === 'k') { x.fillStyle = sh === 'c' ? '#f2f2f2' : '#fb8b1e'; x.beginPath(); x.arc(p.x, p.y, (sh === 'c' ? 5.5 : 6.5) * k, 0, 6.2832); x.fill(); x.stroke(); }
-    else if (sh === 'd') { const r = 7.5 * k; x.fillStyle = '#fb8b1e'; x.beginPath(); x.moveTo(p.x, p.y - r); x.lineTo(p.x + r, p.y); x.lineTo(p.x, p.y + r); x.lineTo(p.x - r, p.y); x.closePath(); x.fill(); x.stroke(); }
-    else { const r = 5 * k; x.fillStyle = '#000'; x.strokeStyle = '#f2f2f2'; x.fillRect(p.x - r, p.y - r, r * 2, r * 2); x.strokeRect(p.x - r, p.y - r, r * 2, r * 2); }
-    if (selectedId === d.id) { x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.arc(p.x, p.y, 12, 0, 6.2832); x.stroke(); }
-    x.globalAlpha = 1;
-    if (a > 0.5) hits.push({ id: d.id, x: p.x, y: p.y });
+    items.push({ d, p, cs });
   }
+  items.sort((a, b) => PRI[a.d.layer] - PRI[b.d.layer]);
+  const placed = [];
+  hits = [];
+  for (const it of items) {
+    const d = it.d, keep = hoverHit === d.id || selectedId === d.id;
+    const tgt = !keep && placed.some((q) => Math.hypot(q.x - it.p.x, q.y - it.p.y) < thr) ? 1 : 0;
+    d._col = lerp(d._col, tgt, k);
+    if (!tgt) placed.push(it.p);
+    it.sz = base * (1 - 0.5 * d._col) * (1 + 0.3 * d._h);
+    it.al = d._a * clamp01((it.cs - 0.12) / 0.15) * (1 - 0.4 * d._col);
+  }
+  for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; drawMarker(x, it.d, it.p, it.sz, it.al); if (it.al > 0.4) hits.push({ id: it.d.id, x: it.p.x, y: it.p.y, r: Math.max(9, 8 * it.sz) }); }
 }
 /* les calques sont redessinés dans la même image que la carte : pas de décalage pendant le glissement */
 map.on('render', () => { const n = performance.now(); dirty = false; movedFlag = false; lastFx = n; drawLabels(); drawFx(n); });
@@ -574,11 +901,11 @@ function frame(t) {
 }
 
 /* ---------- interactions ---------- */
-function hitAt(pt) { let best = null, bd = 13; for (const h of hits) { const d = Math.hypot(h.x - pt.x, h.y - pt.y); if (d < bd) { bd = d; best = h; } } return best; }
+function hitAt(pt) { let best = null, bd = 99; for (const h of hits) { const d = Math.hypot(h.x - pt.x, h.y - pt.y); if (d < h.r + 3 && d < bd) { bd = d; best = h; } } return best; }
 function flowAt(pt) {
   let best = null, bd = 9;
   for (const f of FLOWS) {
-    if (!flowOn[f.kind]) continue;
+    if (!flowVis(f)) continue;
     for (let i = 1; i < f.sp.length; i++) {
       const a = f.sp[i - 1], b = f.sp[i]; if (!a.v || !b.v) continue;
       const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy || 1, t = clamp01(((pt.x - a.x) * dx + (pt.y - a.y) * dy) / l2);
@@ -589,7 +916,11 @@ function flowAt(pt) {
   return best;
 }
 const litLayers = TIERS.map((t) => 'lit' + t.k);
-function litAt(pt) { if (!active.has('conflits')) return null; const f = map.queryRenderedFeatures(pt, { layers: litLayers })[0]; return f ? f.properties.id : null; }
+function conflictAt(pt) {
+  if (!active.has('conflits')) return null;
+  const z = map.queryRenderedFeatures(pt, { layers: ['zf3', 'zf2', 'zf1'] })[0]; if (z) return { zone: true, id: z.properties.id };
+  const f = map.queryRenderedFeatures(pt, { layers: litLayers })[0]; return f ? { id: f.properties.id } : null;
+}
 let hoverFeat = null;
 function setHoverFeat(id) {
   if (id === hoverFeat) return;
@@ -600,14 +931,14 @@ const tip = $('tip');
 map.on('mousemove', (e) => {
   const h = hitAt(e.point); hoverHit = h ? h.id : null;
   const fid = h ? null : flowAt(e.point); hoverFlow = fid;
-  const cid = h || fid ? null : litAt(e.point);
-  setHoverFeat(cid);
-  map.getCanvas().style.cursor = h || fid || cid ? 'pointer' : '';
+  const cf = h || fid ? null : conflictAt(e.point);
+  setHoverFeat(cf && !cf.zone ? cf.id : null);
+  map.getCanvas().style.cursor = h || fid || cf ? 'pointer' : '';
   let html = '';
-  if (h) { const d = DATA.find((x) => x.id === h.id); html = '<b>' + esc(d.name) + '</b><span>' + esc(d.layer === 'conflits' ? LEVEL[d.level] : d.tag) + '</span>'; }
-  else if (fid) { const f = FLOW_BY_ID[fid]; html = '<b>' + esc(f.name) + '</b><span>' + esc(f.tag) + '</span>'; }
-  else if (cid) { const d = byCountry[cid]; html = '<b>' + esc(d.name) + '</b><span>' + LEVEL[d.ids[cid]] + '</span>'; }
-  if (html) { tip.innerHTML = html; tip.style.display = 'block'; tip.style.left = Math.min(e.originalEvent.clientX + 14, window.innerWidth - 270) + 'px'; tip.style.top = (e.originalEvent.clientY + 14) + 'px'; }
+  if (h) { const d = DATA.find((x) => x.id === h.id); html = '<b>' + esc(d.name) + '</b><span>' + esc(d.layer === 'conflits' ? LEVEL[d.level] : d.tag) + '</span>' + (d.layer === 'marches' ? '<span>' + esc(statusText(d)) + '</span>' : ''); }
+  else if (fid) { const f = FLOW_BY_ID[fid]; html = '<b>' + esc(f.name) + '</b><span>' + esc(f.tag) + '</span>' + (f.ship && shipsOn ? '<span>Navires illustratifs : ' + esc(f.ship.toLowerCase()) + ', pas de positions réelles</span>' : ''); }
+  else if (cf) { const d = cf.zone ? DATA.find((x) => x.id === cf.id) : byCountry[cf.id]; html = '<b>' + esc(d.name) + '</b><span>' + (cf.zone ? LEVEL[d.level] : LEVEL[d.ids[cf.id]]) + '</span>'; }
+  if (html) { tip.innerHTML = html; tip.style.display = 'block'; tip.style.left = Math.min(e.originalEvent.clientX + 14, window.innerWidth - 290) + 'px'; tip.style.top = (e.originalEvent.clientY + 14) + 'px'; }
   else tip.style.display = 'none';
   movedFlag = true;
 });
@@ -615,7 +946,7 @@ map.on('mouseout', () => { tip.style.display = 'none'; hoverHit = null; hoverFlo
 map.on('click', (e) => {
   const h = hitAt(e.point); if (h) return select(h.id);
   const fid = flowAt(e.point); if (fid) return select(fid);
-  const cid = litAt(e.point); if (cid) select(byCountry[cid].id);
+  const cf = conflictAt(e.point); if (cf) select(cf.zone ? cf.id : byCountry[cf.id].id);
 });
 
 /* légende repliable avec transition, qui sert aussi de filtre */
@@ -626,15 +957,18 @@ function legend(open) {
 $('legendClose').addEventListener('click', () => legend(false));
 $('legendOpen').addEventListener('click', () => legend(true));
 function applyLayers() {
-  const on = active.has('conflits') ? 'visible' : 'none';
-  for (const t of TIERS) map.setLayoutProperty('lit' + t.k, 'visibility', on);
+  const on = active.has('conflits');
+  for (const [id, prop, val] of CONF) map.setPaintProperty(id, prop, on ? val : 0);
+  for (let i = 0; i < 4; i++) map.setPaintProperty('nt' + i, 'fill-opacity', nightOn ? 0.13 : 0);
   syncSel(); movedFlag = true;
 }
-function currentVisible() { const d = DATA.find((x) => x.id === selectedId) || FLOW_BY_ID[selectedId]; if (!d) return false; return d.kind ? flowOn[d.kind] : active.has(d.layer); }
+function currentVisible() { const d = DATA.find((x) => x.id === selectedId) || FLOW_BY_ID[selectedId]; if (!d) return false; return d.kind ? flowVis(d) : active.has(d.layer); }
 document.querySelectorAll('.lg-row').forEach((b) => b.addEventListener('click', () => {
-  const k = b.dataset.k, f = b.dataset.f;
+  const k = b.dataset.k, f = b.dataset.f, o = b.dataset.o;
   if (k) { active.has(k) ? active.delete(k) : active.add(k); b.setAttribute('aria-pressed', active.has(k)); }
-  else { flowOn[f] = !flowOn[f]; b.setAttribute('aria-pressed', flowOn[f]); }
+  else if (f) { flowOn[f] = !flowOn[f]; b.setAttribute('aria-pressed', flowOn[f]); }
+  else if (o === 'ships') { shipsOn = !shipsOn; b.setAttribute('aria-pressed', shipsOn); }
+  else if (o) { nightOn = !nightOn; b.setAttribute('aria-pressed', nightOn); }
   if (selectedId && !currentVisible()) closeDetail();
   applyLayers();
 }));
@@ -645,23 +979,36 @@ function syncSel() {
   const d = DATA.find((x) => x.id === selectedId);
   const ids = d && d.ids && active.has(d.layer) ? Object.keys(d.ids) : [];
   for (const t of TIERS) map.setFilter('sel' + t.k, ids.length ? ['in', ['get', 'id'], ['literal', ids]] : ['==', ['get', 'id'], '__none__']);
+  map.setFilter('zsel', d && d.zone && active.has(d.layer) ? ['==', ['get', 'id'], d.id] : ['==', ['get', 'id'], '__none__']);
 }
 function renderDetail() {
   const d = DATA.find((x) => x.id === selectedId) || FLOW_BY_ID[selectedId], el = $('detail');
   if (!d) { el.classList.add('off'); return; }
   const kind = d.kind ? FLUX_KIND[d.kind] : null, sh = kind ? kind.shape : LAYERS[d.layer].shape, label = kind ? 'Flux 3D · ' + kind.label : LAYERS[d.layer].label + (d.level ? ' · ' + LEVEL[d.level] : '');
-  el.innerHTML = '<div class="top"><div class="kind"><span class="sh ' + sh + '"></span>' + esc(label) + '</div><button class="ib x" type="button" aria-label="Fermer la fiche" id="dx"><svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M2 2l10 10M12 2L2 12"/></svg></button></div><h3>' + esc(d.name) + '</h3><div class="tag">' + esc(d.tag) + '</div><p>' + esc(d.text) + '</p><div class="asof">Donnée : ' + esc(d.asof) + '</div>';
+  const st = d.layer === 'marches' ? '<div class="st' + (d.open ? ' on' : '') + '"><i></i>' + esc(statusText(d)) + '</div>' : '';
+  el.innerHTML = '<div class="top"><div class="kind"><span class="sh ' + sh + '"></span>' + esc(label) + '</div><button class="ib x" type="button" aria-label="Fermer la fiche" id="dx"><svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M2 2l10 10M12 2L2 12"/></svg></button></div><h3>' + esc(d.name) + '</h3><div class="tag">' + esc(d.tag) + '</div>' + st + '<p>' + esc(d.text) + '</p><div class="asof">Donnée : ' + esc(d.asof) + '</div>';
   el.classList.remove('off'); $('dx').addEventListener('click', closeDetail);
 }
 function closeDetail() { selectedId = null; renderDetail(); syncSel(); movedFlag = true; }
 function select(id) {
   selectedId = id; const d = DATA.find((x) => x.id === id) || FLOW_BY_ID[id];
-  setRot(false); flyTo(d.lng, d.lat, d.kind ? Z0 + d.zoom : Math.max(Z0 + 1.4, Math.min(map.getZoom(), Z0 + 3)));
+  setRot(false); glide(d.lng, d.lat, d.kind ? Z0 + d.zoom : d.zone ? Math.max(Z0 + 1.6, Math.min(map.getZoom(), Z0 + 3)) : Math.max(Z0 + 1.4, Math.min(map.getZoom(), Z0 + 3)), 1100);
   renderDetail(); syncSel(); movedFlag = true;
 }
-$('src').innerHTML = 'Instantané compilé le 11 novembre 2026, pas un flux en direct. Niveaux boursiers des 2 à 4 novembre. Fiches « non vérifié » : pas de source datée. Les flux 3D sont schématiques : trajectoires de pays à pays, pas des tracés réels.<br>' +
+SOURCES.push(['TWZ, où sont les porte-avions (30 sept. 2026)', 'https://www.twz.com/sea/where-are-the-aircraft-carriers-september-30-2026'], ['TWZ, Theodore Roosevelt à Singapour', 'https://www.twz.com/sea/uss-theodore-roosevelt-arrives-in-singapore-last-stop-before-third-strike-group-reaches-the-middle-east'], ['247WallSt, dette américaine détenue', 'https://247wallst.com/investing/2026/09/29/china-holds-618-billion-of-u-s-debt-only-2-countries-hold-more/'], ['idw, Kiel Ukraine Support Tracker', 'https://nachrichten.idw-online.de/2026/08/13/ukraine-support-tracker-europe-leads-on-aid-us-weapons-remain-key'], ['SynMax, GNL américain', 'https://blog.synmax.com/hyperion-client/us-lng-just-became-the-only-reliable-large-scale-supplier-but-its-already-maxed-out']);
+$('src').innerHTML = 'Instantané compilé le 11 novembre 2026, pas un flux en direct. Niveaux boursiers des 2 à 4 novembre. Fiches « non vérifié » : pas de source datée. Les flux 3D sont schématiques : trajectoires de pays à pays, pas des tracés réels ni des volumes. Flotte militaire : seuls des porte-avions américains, positions de fin septembre 2026 et zones approximatives, rien sur les autres marines. Les navires marchands sont illustratifs : ils suivent les routes habituelles mais ne sont pas des positions réelles (pas de suivi AIS). Les jauges des chokepoints sont des parts habituelles du trafic, pas du temps réel. Les séances de bourse sont calculées d’après les horaires habituels, jours fériés non pris en compte.<br>' +
   SOURCES.map(([n, u]) => '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + esc(n) + '</a>').join(' · ');
-map.on('load', () => { applyLayers(); requestAnimationFrame(frame); });
+
+/* mises à jour en continu : séances et ombre de nuit */
+setInterval(() => { updateExchanges(false); movedFlag = true; if (selectedId && DATA.find((x) => x.id === selectedId && x.layer === 'marches')) renderDetail(); }, 20000);
+setInterval(() => { const s = map.getSource('night'); if (s) s.setData(nightGeo(new Date())); }, 60000);
+
+map.on('load', () => {
+  applyLayers();
+  requestAnimationFrame(frame);
+  if (!reduce) { map.jumpTo({ zoom: Z0 - 0.6 }); tz = map.getZoom(); stage.classList.add('on'); flying = true; map.easeTo({ zoom: Z0, duration: 1900, easing: ease, essential: true }); }
+  else stage.classList.add('on');
+});
 
 </script>
 
